@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 set -e
 
 # 1. APP_KEY 缺失时生成（镜像内只有 .env.example）
@@ -25,6 +25,9 @@ php artisan migrate --force
 
 # 4. 空库时灌入演示数据（幂等：有订单就跳过）
 php artisan tinker --execute="if (\App\Models\Order::count() === 0) { Artisan::call('db:seed', ['--force' => true]); echo 'Seeded demo data.'.PHP_EOL; } else { echo 'Data exists, skip seeding.'.PHP_EOL; }"
+
+# 4.5 storage 权限：worker(root) 与 FPM(www-data) 共用，日志/导出文件需双方可读写
+chmod -R a+rwX /var/www/storage
 
 # 5. 执行容器主命令（php artisan serve / queue:work 等）
 exec "$@"

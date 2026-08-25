@@ -10,7 +10,9 @@ use App\Models\Task;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * 异步任务：落库排队（pending）+ 发布 RabbitMQ 消息，Worker 消费后执行报表/导出。
@@ -48,6 +50,32 @@ class TaskController extends Controller
         }
 
         return ApiResponse::ok($this->format($task));
+    }
+
+    /** 下载任务产物（export:orders 的 CSV 等）
+     *  默认：附件下载；加 ?inline=1：直接返回文件内容（agent 可直接读取）。 */
+    public function download(Request $request, string $taskNo): SymfonyResponse
+    {
+        $task = Task::where('task_no', $taskNo)->first();
+        if (! $task) {
+            return ApiResponse::fail(40406, '任务不存在', 404);
+        }
+        if ($task->status !== TaskStatus::Success || ! $task->result_path) {
+            return ApiResponse::fail(40908, '任务无产物可下载', 409);
+        }
+        if (! Storage::disk('local')->exists($task->result_path)) {
+            return ApiResponse::fail(40408, '产物文件不存在', 404);
+        }
+
+        $name = basename($task->result_path);
+
+        if ($request->boolean('inline')) {
+            return response(Storage::disk('local')->get($task->result_path), 200, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        }
+
+        return Storage::disk('local')->download($task->result_path, $name);
     }
 
     private function format(Task $task): array

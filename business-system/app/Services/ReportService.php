@@ -180,8 +180,14 @@ class ReportService
             ]);
         }
         rewind($csv);
+        Storage::disk('local')->makeDirectory('exports');
         Storage::disk('local')->put($filename, stream_get_contents($csv));
         fclose($csv);
+
+        // Worker 以 root 运行，写出的目录/文件默认 700/644 不可被 FPM(www-data) 读取，
+        // 这里显式放开，保证下载接口（php-api 容器）能读到。
+        @chmod(Storage::disk('local')->path('exports'), 0755);
+        @chmod(Storage::disk('local')->path($filename), 0644);
 
         return [
             'summary' => [

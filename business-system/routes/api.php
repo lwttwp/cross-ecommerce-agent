@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function () {
 
         Route::post('tasks', [TaskController::class, 'store']);
         Route::get('tasks/{taskNo}', [TaskController::class, 'show']);
+        Route::get('tasks/{taskNo}/download', [TaskController::class, 'download']);
     });
 
     // admin 角色（资金风险操作，仅人工审批）
