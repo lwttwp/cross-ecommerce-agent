@@ -159,4 +159,57 @@ class OrderController extends Controller
 
         return back()->with('success', "订单 {$order->order_no} 已支付");
     }
+
+    /** 发货表单页（仅 PAID 可发） */
+    public function shipForm(string $orderNo): View
+    {
+        $order = Order::with('customer:id,name,email,country')
+            ->where('order_no', $orderNo)
+            ->firstOrFail();
+
+        return view('orders.ship', ['order' => $order]);
+    }
+
+    /** 发货（PAID → SHIPPED，写入物流单号） */
+    public function ship(Request $request, string $orderNo): RedirectResponse
+    {
+        $data = $request->validate([
+            'tracking_no' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $order = Order::where('order_no', $orderNo)->first();
+        if (! $order) {
+            return back()->with('error', '订单不存在');
+        }
+
+        $trackingNo = $data['tracking_no'] !== null && trim($data['tracking_no']) !== ''
+            ? trim($data['tracking_no'])
+            : 'CE-TRK-'.strtoupper(bin2hex(random_bytes(3)));
+
+        try {
+            $this->orders->ship($order, $trackingNo, 'admin');
+        } catch (BusinessException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect('/admin/orders')
+            ->with('success', "订单 {$order->order_no} 已发货（运单号 {$trackingNo}）");
+    }
+
+    /** 标记签收（SHIPPED → COMPLETED） */
+    public function complete(Request $request, string $orderNo): RedirectResponse
+    {
+        $order = Order::where('order_no', $orderNo)->first();
+        if (! $order) {
+            return back()->with('error', '订单不存在');
+        }
+
+        try {
+            $this->orders->markCompleted($order, 'admin');
+        } catch (BusinessException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "订单 {$order->order_no} 已签收完成");
+    }
 }

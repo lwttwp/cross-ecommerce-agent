@@ -28,7 +28,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/orders/{orderNo}', [OrderController::class, 'show']);
     Route::get('/admin/orders/{orderNo}/refund', [OrderController::class, 'refundForm']);
     Route::post('/admin/orders/{orderNo}/refund', [OrderController::class, 'refund']);
+    Route::get('/admin/orders/{orderNo}/ship', [OrderController::class, 'shipForm']);
+    Route::post('/admin/orders/{orderNo}/ship', [OrderController::class, 'ship']);
     Route::post('/admin/orders/{orderNo}/pay', [OrderController::class, 'pay']);
+    Route::post('/admin/orders/{orderNo}/complete', [OrderController::class, 'complete']);
 
     // 客户
     Route::get('/admin/customers', [CustomerController::class, 'index']);

@@ -53,11 +53,20 @@
                     <td>¥{{ number_format((float) $order->paid_amount * (float) $order->exchange_rate, 2) }}</td>
                     <td>{{ $order->logistics_status?->label() ?? '-' }}</td>
                     <td class="nowrap">{{ $order->created_at?->format('Y-m-d H:i') }}</td>
-                    <td>
-                        @if (in_array($order->status->value, ['PAID', 'SHIPPED', 'COMPLETED'], true))
-                            <a href="{{ url('/admin/orders/'.$order->order_no.'/refund') }}"
-                               style="color:#dc2626; font-size:13px; text-decoration:none;">退款</a>
-                        @else
+                    <td class="nowrap">
+                        @php $st = $order->status->value; @endphp
+                        @if ($st === 'PAID')
+                            <a href="{{ url('/admin/orders/'.$order->order_no.'/ship') }}" style="color:#1d4ed8; font-size:13px; text-decoration:none;">发货</a>
+                        @elseif ($st === 'SHIPPED')
+                            <form method="POST" action="{{ url('/admin/orders/'.$order->order_no.'/complete') }}" style="display:inline;">
+                                @csrf
+                                <button type="submit" style="background:#059669; padding:4px 12px; font-size:13px;">签收</button>
+                            </form>
+                        @endif
+                        @if (in_array($st, ['PAID', 'SHIPPED', 'COMPLETED'], true))
+                            <a href="{{ url('/admin/orders/'.$order->order_no.'/refund') }}" style="color:#dc2626; font-size:13px; text-decoration:none; margin-left:8px;">退款</a>
+                        @endif
+                        @if (! in_array($st, ['PAID', 'SHIPPED', 'COMPLETED'], true))
                             <small>-</small>
                         @endif
                     </td>
