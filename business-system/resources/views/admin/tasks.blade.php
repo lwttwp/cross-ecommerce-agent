@@ -34,7 +34,7 @@
             <tbody>
             @forelse ($tasks as $task)
                 <tr>
-                    <td>{{ $task->task_no }}</td>
+                    <td><a href="{{ url('/admin/tasks/'.$task->task_no) }}">{{ $task->task_no }}</a></td>
                     <td>{{ $task->type->label() }}</td>
                     <td><span class="badge {{ $task->status->value }}">{{ $task->status->label() }}</span></td>
                     <td style="max-width:280px;">

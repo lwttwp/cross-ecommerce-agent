@@ -23,20 +23,25 @@ Route::middleware('auth')->group(function () {
 
     // 订单
     Route::get('/admin/orders', [OrderController::class, 'index']);
+    Route::get('/admin/orders/{orderNo}', [OrderController::class, 'show']);
 
     // 客户
     Route::get('/admin/customers', [CustomerController::class, 'index']);
+    Route::get('/admin/customers/{id}', [CustomerController::class, 'show']);
 
     // 商品
     Route::get('/admin/products', [ProductController::class, 'index']);
+    Route::get('/admin/products/{sku}', [ProductController::class, 'show']);
 
     // 退款审批
     Route::get('/admin/refunds', [RefundController::class, 'index']);
+    Route::get('/admin/refunds/{id}', [RefundController::class, 'show']);
     Route::post('/admin/refunds/{id}/approve', [RefundController::class, 'approve']);
     Route::post('/admin/refunds/{id}/reject', [RefundController::class, 'reject']);
 
     // 异步任务
     Route::get('/admin/tasks', [TaskController::class, 'index']);
+    Route::get('/admin/tasks/{taskNo}', [TaskController::class, 'show']);
     Route::get('/admin/tasks/{taskNo}/download', [TaskController::class, 'download']);
 
     // 汇率

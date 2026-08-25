@@ -40,6 +40,31 @@ class CustomerController extends Controller
         return view('admin.customers', ['customers' => $customers]);
     }
 
+    /** 客户详情：基本信息 + 订单列表 + 消费统计 */
+    public function show(int $id): View
+    {
+        $customer = Customer::with('orders.items')->findOrFail($id);
+
+        $orderCount = $customer->orders->count();
+        $spentCny = 0.0;
+        $refundRelated = 0;
+        foreach ($customer->orders as $order) {
+            if (in_array($order->status->value, self::PAID_STATUSES, true)) {
+                $spentCny += round((float) $order->paid_amount * (float) $order->exchange_rate, 2);
+            }
+            if (in_array($order->status->value, ['REFUNDING', 'REFUNDED'], true)) {
+                $refundRelated++;
+            }
+        }
+
+        return view('admin.customers_show', [
+            'customer' => $customer,
+            'orderCount' => $orderCount,
+            'spentCny' => round($spentCny, 2),
+            'refundRelated' => $refundRelated,
+        ]);
+    }
+
     /** 手机号中间四位打码 */
     public static function maskPhone(?string $phone): ?string
     {

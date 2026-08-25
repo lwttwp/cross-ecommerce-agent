@@ -30,8 +30,8 @@
             <tbody>
             @forelse ($products as $p)
                 <tr>
-                    <td>{{ $p->sku }}</td>
-                    <td>{{ $p->name }}</td>
+                    <td><a href="{{ url('/admin/products/'.$p->sku) }}">{{ $p->sku }}</a></td>
+                    <td><a href="{{ url('/admin/products/'.$p->sku) }}">{{ $p->name }}</a></td>
                     <td>{{ $p->category }}</td>
                     <td>{{ number_format($p->price, 2) }}</td>
                     <td>

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Refund;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 /**
  * 审批页（M2）：给人看的退款审批单页，列表 + 通过/驳回。
@@ -16,7 +17,7 @@ class RefundController extends Controller
     public function __construct(private readonly OrderService $orders) {}
 
     /** 退款审批列表（默认只看待审批，可切状态） */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $query = Refund::with('order:id,order_no,currency,exchange_rate,paid_amount')
             ->orderByDesc('created_at');
@@ -26,6 +27,14 @@ class RefundController extends Controller
         $refunds = $query->paginate(15)->withQueryString();
 
         return view('refunds.index', ['refunds' => $refunds]);
+    }
+
+    /** 退款详情 */
+    public function show(int $id): View
+    {
+        $refund = Refund::with('order.customer')->findOrFail($id);
+
+        return view('refunds.show', ['refund' => $refund]);
     }
 
     /** 通过 */

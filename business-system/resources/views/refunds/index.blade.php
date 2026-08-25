@@ -36,8 +36,8 @@
             <tbody>
             @forelse ($refunds as $refund)
                 <tr>
-                    <td>{{ $refund->refund_no }}</td>
-                    <td>{{ $refund->order?->order_no }}</td>
+                    <td><a href="{{ url('/admin/refunds/'.$refund->id) }}">{{ $refund->refund_no }}</a></td>
+                    <td><a href="{{ url('/admin/orders/'.$refund->order?->order_no) }}">{{ $refund->order?->order_no }}</a></td>
                     <td>{{ number_format($refund->amount, 2) }} {{ $refund->currency }}</td>
                     <td>¥{{ number_format((float) $refund->amount * (float) ($refund->order?->exchange_rate ?? 1), 2) }}</td>
                     <td style="max-width: 220px;">{{ $refund->reason }}</td>

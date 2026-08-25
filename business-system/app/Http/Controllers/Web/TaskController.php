@@ -37,4 +37,12 @@ class TaskController extends Controller
 
         return Storage::disk('local')->download($task->result_path, basename($task->result_path));
     }
+
+    /** 任务详情 */
+    public function show(string $taskNo): View
+    {
+        $task = Task::where('task_no', $taskNo)->firstOrFail();
+
+        return view('admin.tasks_show', ['task' => $task]);
+    }
 }

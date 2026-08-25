@@ -25,7 +25,7 @@
             @forelse ($customers as $c)
                 <tr>
                     <td>{{ $c->id }}</td>
-                    <td>{{ $c->name }}</td>
+                    <td><a href="{{ url('/admin/customers/'.$c->id) }}">{{ $c->name }}</a></td>
                     <td>{{ $c->email }}</td>
                     <td>{{ \App\Http\Controllers\Web\CustomerController::maskPhone($c->phone) }}</td>
                     <td>{{ $c->country }}</td>

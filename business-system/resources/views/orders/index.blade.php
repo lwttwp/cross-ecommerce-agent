@@ -30,8 +30,14 @@
             <tbody>
             @forelse ($orders as $order)
                 <tr>
-                    <td>{{ $order->order_no }}</td>
-                    <td>{{ $order->customer?->name }}<br><small>{{ $order->customer?->email }}</small></td>
+                    <td><a href="{{ url('/admin/orders/'.$order->order_no) }}">{{ $order->order_no }}</a></td>
+                    <td>
+                        @if ($order->customer)
+                            <a href="{{ url('/admin/customers/'.$order->customer->id) }}">{{ $order->customer->name }}</a><br><small>{{ $order->customer->email }}</small>
+                        @else
+                            <small>-</small>
+                        @endif
+                    </td>
                     <td>
                         <span class="badge {{ strtolower(str_replace('_', '-', $order->status->value)) }}">
                             {{ $order->status->label() }}
