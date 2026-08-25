@@ -24,7 +24,7 @@
             <thead>
             <tr>
                 <th>订单号</th><th>客户</th><th>状态</th><th>币种</th>
-                <th>实付金额</th><th>折合 CNY</th><th>物流</th><th>下单时间</th>
+                <th>实付金额</th><th>折合 CNY</th><th>物流</th><th>下单时间</th><th>操作</th>
             </tr>
             </thead>
             <tbody>
@@ -48,9 +48,17 @@
                     <td>¥{{ number_format((float) $order->paid_amount * (float) $order->exchange_rate, 2) }}</td>
                     <td>{{ $order->logistics_status?->label() ?? '-' }}</td>
                     <td class="nowrap">{{ $order->created_at?->format('Y-m-d H:i') }}</td>
+                    <td>
+                        @if (in_array($order->status->value, ['PAID', 'SHIPPED', 'COMPLETED'], true))
+                            <a href="{{ url('/admin/orders/'.$order->order_no.'/refund') }}"
+                               style="color:#dc2626; font-size:13px; text-decoration:none;">退款</a>
+                        @else
+                            <small>-</small>
+                        @endif
+                    </td>
                 </tr>
             @empty
-                <tr><td colspan="8" class="empty">没有符合条件的订单</td></tr>
+                <tr><td colspan="9" class="empty">没有符合条件的订单</td></tr>
             @endforelse
             </tbody>
         </table>
