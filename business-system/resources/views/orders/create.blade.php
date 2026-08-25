@@ -64,18 +64,27 @@
 
         <div class="card" style="margin-bottom:16px;">
             <h1 style="font-size:15px; margin-bottom:12px;">商品明细</h1>
+            @php
+                $oldItems = old('items');
+                if (! is_array($oldItems) || $oldItems === []) {
+                    $oldItems = [['sku' => '', 'quantity' => 1]];
+                }
+                $rowCount = count($oldItems);
+            @endphp
             <div id="items">
-                <div class="item-row" style="display:flex; gap:8px; margin-bottom:8px;">
-                    <select name="items[0][sku]" required style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:#fff;">
-                        <option value="">选择商品</option>
-                        @foreach ($products as $p)
-                            <option value="{{ $p->sku }}">{{ $p->sku }} — {{ $p->name }}（${{ $p->price }} · 库存 {{ $p->stock }}）</option>
-                        @endforeach
-                    </select>
-                    <input type="number" name="items[0][quantity]" value="1" min="1" required
-                           style="width:90px; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
-                    <button type="button" onclick="removeRow(this)" style="background:#dc2626; padding:8px 14px;">删除</button>
-                </div>
+                @foreach ($oldItems as $i => $item)
+                    <div class="item-row" style="display:flex; gap:8px; margin-bottom:8px;">
+                        <select name="items[{{ $i }}][sku]" required style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:#fff;">
+                            <option value="">选择商品</option>
+                            @foreach ($products as $p)
+                                <option value="{{ $p->sku }}" @selected(($item['sku'] ?? '') === $p->sku)>{{ $p->sku }} — {{ $p->name }}（${{ $p->price }} · 库存 {{ $p->stock }}）</option>
+                            @endforeach
+                        </select>
+                        <input type="number" name="items[{{ $i }}][quantity]" value="{{ $item['quantity'] ?? 1 }}" min="1" required
+                               style="width:90px; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+                        <button type="button" onclick="removeRow(this)" style="background:#dc2626; padding:8px 14px;">删除</button>
+                    </div>
+                @endforeach
             </div>
             <button type="button" onclick="addRow()" style="background:#6b7280;">+ 添加商品</button>
         </div>
@@ -84,7 +93,7 @@
     </form>
 
     <script>
-        let rowIndex = 1;
+        let rowIndex = {{ $rowCount }};
         const productOptions = @json($products->map(fn ($p) => ['sku' => $p->sku, 'label' => $p->sku.' — '.$p->name.'（$'.$p->price.' · 库存 '.$p->stock.'）']));
 
         function addRow() {
