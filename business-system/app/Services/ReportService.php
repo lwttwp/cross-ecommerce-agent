@@ -20,6 +20,29 @@ class ReportService
     private const REFUND_STATUSES = ['REFUNDING', 'REFUNDED'];
 
     /**
+     * 写 CSV 到 storage/app/private/exports/ 并返回相对路径。
+     * Worker(root) 写完后放开权限，保证 FPM(www-data) 能读（下载接口）。
+     */
+    private function writeCsv(string $name, array $headers, array $rows): string
+    {
+        $filename = 'exports/'.$name;
+        $csv = fopen('php://temp', 'w');
+        fputcsv($csv, $headers);
+        foreach ($rows as $row) {
+            fputcsv($csv, $row);
+        }
+        rewind($csv);
+        Storage::disk('local')->makeDirectory('exports');
+        Storage::disk('local')->put($filename, stream_get_contents($csv));
+        fclose($csv);
+
+        @chmod(Storage::disk('local')->path('exports'), 0755);
+        @chmod(Storage::disk('local')->path($filename), 0644);
+
+        return $filename;
+    }
+
+    /**
      * 月度销售报表：按自然月聚合销售额（折合 CNY）、订单数、退款单数。
      *
      * @param  array{date_from?: string, date_to?: string}  $params
@@ -58,6 +81,13 @@ class ReportService
         $totalOrders = $rows->sum('order_count');
         $totalRefunds = $rows->sum('refund_count');
 
+        // 同时生成 CSV 产物，供下载接口使用
+        $path = $this->writeCsv(
+            'monthly_sales_'.now()->format('Ymd_His').'.csv',
+            ['month', 'order_count', 'sales_cny', 'refund_count', 'refund_rate'],
+            $rows->map(fn ($r) => array_values($r))->all(),
+        );
+
         return [
             'summary' => [
                 'range' => [
@@ -70,7 +100,7 @@ class ReportService
                 'refund_rate' => $totalOrders > 0 ? round(($totalRefunds / $totalOrders) * 100, 2) : 0.0,
                 'months' => $rows->values(),
             ],
-            'path' => null,
+            'path' => $path,
         ];
     }
 
@@ -123,6 +153,13 @@ class ReportService
         $totalPaid = $months->sum('paid_orders');
         $totalRefunds = $months->sum('refund_requests');
 
+        // 同时生成 CSV 产物，供下载接口使用
+        $path = $this->writeCsv(
+            'refund_rate_'.now()->format('Ymd_His').'.csv',
+            ['month', 'paid_orders', 'refund_requests', 'refund_rate'],
+            $months->map(fn ($r) => array_values($r))->all(),
+        );
+
         return [
             'summary' => [
                 'range' => [
@@ -134,7 +171,7 @@ class ReportService
                 'refund_rate' => $totalPaid > 0 ? round(($totalRefunds / $totalPaid) * 100, 2) : 0.0,
                 'months' => $months,
             ],
-            'path' => null,
+            'path' => $path,
         ];
     }
 
@@ -160,12 +197,10 @@ class ReportService
 
         $orders = $query->get();
 
-        $filename = 'exports/orders_'.now()->format('Ymd_His').'.csv';
-        $csv = fopen('php://temp', 'w');
-        fputcsv($csv, ['order_no', 'customer_name', 'customer_email', 'customer_country', 'status', 'currency', 'total_amount', 'paid_amount', 'exchange_rate', 'paid_amount_cny', 'created_at']);
-
-        foreach ($orders as $o) {
-            fputcsv($csv, [
+        $path = $this->writeCsv(
+            'orders_'.now()->format('Ymd_His').'.csv',
+            ['order_no', 'customer_name', 'customer_email', 'customer_country', 'status', 'currency', 'total_amount', 'paid_amount', 'exchange_rate', 'paid_amount_cny', 'created_at'],
+            $orders->map(fn ($o) => [
                 $o->order_no,
                 $o->customer?->name,
                 $o->customer?->email,
@@ -177,24 +212,15 @@ class ReportService
                 (float) $o->exchange_rate,
                 round((float) $o->paid_amount * (float) $o->exchange_rate, 2),
                 $o->created_at?->toDateTimeString(),
-            ]);
-        }
-        rewind($csv);
-        Storage::disk('local')->makeDirectory('exports');
-        Storage::disk('local')->put($filename, stream_get_contents($csv));
-        fclose($csv);
-
-        // Worker 以 root 运行，写出的目录/文件默认 700/644 不可被 FPM(www-data) 读取，
-        // 这里显式放开，保证下载接口（php-api 容器）能读到。
-        @chmod(Storage::disk('local')->path('exports'), 0755);
-        @chmod(Storage::disk('local')->path($filename), 0644);
+            ])->all(),
+        );
 
         return [
             'summary' => [
-                'filename' => basename($filename),
+                'filename' => basename($path),
                 'rows' => $orders->count(),
             ],
-            'path' => $filename,
+            'path' => $path,
         ];
     }
 }
