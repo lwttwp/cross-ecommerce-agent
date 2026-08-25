@@ -4,8 +4,13 @@
 @section('page_sub', '多条件查询 + 分页')
 
 @section('content')
-    <h1>📦 订单管理</h1>
-    <div class="sub">共 {{ $orders->total() }} 笔订单（演示数据）</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+            <h1 style="margin:0;">📦 订单管理</h1>
+            <div class="sub" style="margin:4px 0 0;">共 {{ $orders->total() }} 笔订单（演示数据）</div>
+        </div>
+        <a href="{{ url('/admin/orders/create') }}" style="background:#059669; color:#fff; padding:9px 18px; border-radius:8px; text-decoration:none; font-size:14px;">＋ 下单</a>
+    </div>
 
     <form class="filters" method="GET">
         <select name="status">

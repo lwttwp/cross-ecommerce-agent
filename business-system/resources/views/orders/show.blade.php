@@ -6,8 +6,22 @@
 @section('content')
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h1 style="margin:0;">📦 订单详情</h1>
-        <a href="{{ url('/admin/orders') }}" class="reset">← 返回列表</a>
+        <div style="display:flex; gap:10px; align-items:center;">
+            @if (session('success'))
+                <span class="flash success" style="margin:0;">{{ session('success') }}</span>
+            @endif
+            @if ($order->status->value === 'PENDING_PAYMENT')
+                <form method="POST" action="{{ url('/admin/orders/'.$order->order_no.'/pay') }}" style="margin:0;">
+                    @csrf
+                    <button type="submit" style="background:#059669;">标记已支付</button>
+                </form>
+            @endif
+            <a href="{{ url('/admin/orders') }}" class="reset">← 返回列表</a>
+        </div>
     </div>
+    @if (session('error'))
+        <div class="flash error">{{ session('error') }}</div>
+    @endif
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
         <div class="card" style="margin:0;">

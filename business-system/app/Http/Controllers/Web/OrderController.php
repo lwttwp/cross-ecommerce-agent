@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Web;
 
 use App\Exceptions\BusinessException;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use App\Models\ExchangeRate;
 use App\Models\Order;
+use App\Models\Product;
 use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -87,5 +90,73 @@ class OrderController extends Controller
 
         return redirect('/admin/refunds')
             ->with('success', "退款申请 {$refund->refund_no} 已提交，等待审批");
+    }
+
+    /** 下单表单页 */
+    public function createForm(): View
+    {
+        return view('orders.create', [
+            'customers' => Customer::orderBy('name')->get(['id', 'name', 'email', 'country']),
+            'products' => Product::where('status', 'on')->orderBy('sku')->get(['sku', 'name', 'price', 'stock']),
+            'currencies' => ExchangeRate::orderBy('currency')->pluck('currency'),
+        ]);
+    }
+
+    /** 下单（事务扣库存，走 OrderService） */
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'currency' => ['required', 'string', 'max:3'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.sku' => ['required', 'string'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'recipient_name' => ['required', 'string'],
+            'phone' => ['required', 'string'],
+            'country' => ['required', 'string'],
+            'state' => ['nullable', 'string'],
+            'city' => ['required', 'string'],
+            'address_line1' => ['required', 'string'],
+            'postal_code' => ['required', 'string'],
+        ]);
+
+        try {
+            $order = $this->orders->create([
+                'customer_id' => (int) $data['customer_id'],
+                'currency' => $data['currency'],
+                'items' => array_values($data['items']),
+                'shipping_address' => [
+                    'recipient_name' => $data['recipient_name'],
+                    'phone' => $data['phone'],
+                    'country' => $data['country'],
+                    'state' => $data['state'] ?? null,
+                    'city' => $data['city'],
+                    'address_line1' => $data['address_line1'],
+                    'postal_code' => $data['postal_code'],
+                ],
+            ]);
+        } catch (BusinessException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect('/admin/orders/'.$order->order_no)
+            ->with('success', "订单 {$order->order_no} 创建成功（待支付）");
+    }
+
+    /** 标记支付（PENDING_PAYMENT → PAID） */
+    public function pay(Request $request, string $orderNo): RedirectResponse
+    {
+        $order = Order::where('order_no', $orderNo)->first();
+        if (! $order) {
+            return back()->with('error', '订单不存在');
+        }
+
+        try {
+            $this->orders->pay($order, 'admin');
+        } catch (BusinessException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "订单 {$order->order_no} 已支付");
     }
 }
