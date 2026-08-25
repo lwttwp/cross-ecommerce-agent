@@ -1,0 +1,117 @@
+name: cross-ecommerce-agent
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ce-postgres
+    environment:
+      POSTGRES_DB: cross_ecommerce
+      POSTGRES_USER: ce_app
+      POSTGRES_PASSWORD: ce_app_2026
+    ports:
+      # 本机 5432 已被 Windows 原生 PG 占用，映射到 5433
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ce_app -d cross_ecommerce"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ce-rabbitmq
+    ports:
+      # 本机 5672/15672 已被 Windows 原生 RabbitMQ 占用，映射到 5673/15673
+      - "5673:5672"
+      - "15673:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  php-api:
+    build: ./business-system
+    container_name: ce-php-api
+    # 默认命令即 php-fpm（镜像自带），监听 9000，仅容器内网访问，不映射宿主机端口
+    env_file: ./business-system/.env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: cross_ecommerce
+      DB_USERNAME: ce_app
+      DB_PASSWORD: ce_app_2026
+      QUEUE_CONNECTION: database
+    volumes:
+      # 开发模式：宿主机代码实时映射进容器，改完即生效；vendor 用匿名卷保留镜像内版本
+      - ./business-system:/var/www
+      - /var/www/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Nginx：静态资源 + 把 PHP 请求反代给 php-api 的 FPM(9000)
+  php-web:
+    image: nginx:alpine
+    container_name: ce-php-web
+    ports:
+      - "8000:80"
+    volumes:
+      - ./business-system:/var/www:ro
+      - ./business-system/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php-api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/up"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  php-worker:
+    build: ./business-system
+    container_name: ce-php-worker
+    command: php artisan queue:work --sleep=2 --tries=3
+    env_file: ./business-system/.env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: cross_ecommerce
+      DB_USERNAME: ce_app
+      DB_PASSWORD: ce_app_2026
+      QUEUE_CONNECTION: database
+    volumes:
+      - ./business-system:/var/www
+      - /var/www/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ---------- M3 阶段启用（Agent 集成） ----------
+  # agent:
+  #   build: ./agent
+  #   ports: ["8090:8090"]
+  #   depends_on: [postgres, rabbitmq, php-api, chroma]
+  # mcp-server:
+  #   build: ./mcp-server
+  #   ports: ["8080:8080"]
+  #   depends_on: [php-api]
+  # chroma:
+  #   image: chromadb/chroma
+  #   container_name: ce-chroma
+  #   ports: ["8001:8000"]
+  # ollama:
+  #   image: ollama/ollama
+  #   container_name: ce-ollama
+  #   ports: ["11434:11434"]
+  #   volumes:
+  #     - ollama:/root/.ollama
+
+volumes:
+  pgdata:
+  # ollama:
