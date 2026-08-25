@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
 use App\Http\Controllers\Controller;
+use App\Jobs\RunTaskJob;
 use App\Models\Task;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -12,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * 异步任务：M1 先落库排队（pending），M2 接入 RabbitMQ Worker 消费。
+ * 异步任务：落库排队（pending）+ 发布 RabbitMQ 消息，Worker 消费后执行报表/导出。
  */
 class TaskController extends Controller
 {
@@ -29,8 +30,11 @@ class TaskController extends Controller
             'type' => $data['type'],
             'params' => $data['params'] ?? [],
             'status' => TaskStatus::Pending,
-            'created_by' => null, // M2 接入用户体系后可填
+            'created_by' => null, // M3 接入用户体系后可填
         ]);
+
+        // 发布到 RabbitMQ（连接默认队列 RABBITMQ_QUEUE=tasks），Worker 消费执行
+        dispatch(new RunTaskJob($task->id));
 
         return ApiResponse::ok($this->format($task), '任务已创建，排队中');
     }

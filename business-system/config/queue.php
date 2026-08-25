@@ -76,6 +76,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | RabbitMQ Connection
+    |--------------------------------------------------------------------------
+    |
+    | 异步任务队列（M2）：vladimir-yuldashev/laravel-queue-rabbitmq 驱动。
+    | 容器内 host 为服务名 rabbitmq（5672），宿主机开发连 127.0.0.1:5673。
+    |
+    */
+
+    'rabbitmq' => [
+        'driver' => 'rabbitmq',
+        'queue' => env('RABBITMQ_QUEUE', 'default'),
+        'connection' => 'default',
+        'hosts' => [
+            [
+                'host' => env('RABBITMQ_HOST', '127.0.0.1'),
+                'port' => env('RABBITMQ_PORT', 5672),
+                'user' => env('RABBITMQ_USER', 'guest'),
+                'password' => env('RABBITMQ_PASSWORD', 'guest'),
+                'vhost' => env('RABBITMQ_VHOST', '/'),
+            ],
+        ],
+        'options' => [
+            'queue' => [
+                'prioritize_delayed' => false,
+            ],
+        ],
+        'worker' => env('RABBITMQ_WORKER', 'default'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Job Batching
     |--------------------------------------------------------------------------
     |

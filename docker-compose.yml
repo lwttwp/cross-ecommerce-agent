@@ -22,6 +22,10 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: ce-rabbitmq
+    environment:
+      # guest 默认仅限本机回环连接，容器间连接需要专用账号
+      RABBITMQ_DEFAULT_USER: ce_app
+      RABBITMQ_DEFAULT_PASS: ce_app_2026
     ports:
       # 本机 5672/15672 已被 Windows 原生 RabbitMQ 占用，映射到 5673/15673
       - "5673:5672"
@@ -44,7 +48,12 @@ services:
       DB_DATABASE: cross_ecommerce
       DB_USERNAME: ce_app
       DB_PASSWORD: ce_app_2026
-      QUEUE_CONNECTION: database
+      QUEUE_CONNECTION: rabbitmq
+      RABBITMQ_QUEUE: tasks
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ce_app
+      RABBITMQ_PASSWORD: ce_app_2026
     volumes:
       # 开发模式：宿主机代码实时映射进容器，改完即生效；vendor 用匿名卷保留镜像内版本
       - ./business-system:/var/www
@@ -82,7 +91,12 @@ services:
       DB_DATABASE: cross_ecommerce
       DB_USERNAME: ce_app
       DB_PASSWORD: ce_app_2026
-      QUEUE_CONNECTION: database
+      QUEUE_CONNECTION: rabbitmq
+      RABBITMQ_QUEUE: tasks
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ce_app
+      RABBITMQ_PASSWORD: ce_app_2026
     volumes:
       - ./business-system:/var/www
       - /var/www/vendor
