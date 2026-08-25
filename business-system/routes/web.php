@@ -1,17 +1,48 @@
 <?php
 
+use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\CustomerController;
+use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\OrderController;
+use App\Http\Controllers\Web\ProductController;
+use App\Http\Controllers\Web\RateController;
 use App\Http\Controllers\Web\RefundController;
+use App\Http\Controllers\Web\TaskController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', fn () => redirect('/admin'));
+
+// 登录
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
+
+// 后台（需 session 登录）
+Route::middleware('auth')->group(function () {
+    Route::get('/admin', [DashboardController::class, 'index']);
+
+    // 订单
+    Route::get('/admin/orders', [OrderController::class, 'index']);
+
+    // 客户
+    Route::get('/admin/customers', [CustomerController::class, 'index']);
+
+    // 商品
+    Route::get('/admin/products', [ProductController::class, 'index']);
+
+    // 退款审批
+    Route::get('/admin/refunds', [RefundController::class, 'index']);
+    Route::post('/admin/refunds/{id}/approve', [RefundController::class, 'approve']);
+    Route::post('/admin/refunds/{id}/reject', [RefundController::class, 'reject']);
+
+    // 异步任务
+    Route::get('/admin/tasks', [TaskController::class, 'index']);
+    Route::get('/admin/tasks/{taskNo}/download', [TaskController::class, 'download']);
+
+    // 汇率
+    Route::get('/admin/rates', [RateController::class, 'index']);
 });
 
-// 订单列表页（Web 视图示例）
-Route::get('/orders', [OrderController::class, 'index']);
-
-// 退款审批页（M2：human-in-the-loop 人工审批）
-Route::get('/refunds', [RefundController::class, 'index']);
-Route::post('/refunds/{id}/approve', [RefundController::class, 'approve']);
-Route::post('/refunds/{id}/reject', [RefundController::class, 'reject']);
+// 旧路径重定向到后台
+Route::get('/orders', fn () => redirect('/admin/orders'));
+Route::get('/refunds', fn () => redirect('/admin/refunds'));
