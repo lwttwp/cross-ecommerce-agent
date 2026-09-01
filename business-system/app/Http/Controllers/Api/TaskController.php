@@ -90,8 +90,8 @@ class TaskController extends Controller
             'result_summary' => $task->result_summary,
             'result_path' => $task->result_path,
             'error' => $task->error,
-            'created_at' => $task->created_at?->toIso8601String(),
-            'finished_at' => $task->finished_at?->toIso8601String(),
+            'created_at' => $task->created_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
+            'finished_at' => $task->finished_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
         ];
     }
 }

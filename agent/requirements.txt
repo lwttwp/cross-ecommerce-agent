@@ -3,7 +3,9 @@
 langgraph>=0.4
 langchain-core>=0.3
 
-# LLM：DeepSeek（走 OpenAI 兼容接口）
+# LLM：DeepSeek（官方包 ChatDeepSeek）
+langchain-deepseek>=0.2
+# 兼容备用（OpenAI 兼容接口）
 langchain-openai>=0.3
 
 # Embedding：本地 Ollama qwen3-embedding:4b
@@ -15,8 +17,13 @@ langchain-chroma>=0.1
 
 # MCP 客户端（对接 PHP MCP Server）
 mcp>=1.2
+langchain-mcp-adapters>=0.1
 
 # 工具与配置
 httpx>=0.27
 python-dotenv>=1.0
 pyyaml>=6.0
+
+# 混合检索:BM25 关键词检索 + jieba 中文分词
+rank_bm25>=0.2
+jieba>=0.42

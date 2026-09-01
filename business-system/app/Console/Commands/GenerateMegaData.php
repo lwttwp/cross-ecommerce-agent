@@ -156,9 +156,33 @@ class GenerateMegaData extends Command
                 $isShipped = in_array($status, ['SHIPPED', 'COMPLETED', 'REFUNDED', 'REFUNDING'], true);
                 $isCompleted = in_array($status, ['COMPLETED', 'REFUNDED'], true);
 
+                // 正推时间线(与状态机一致)
                 $paidAt = $isPaid ? $this->addMinutes($createdAt, random_int(3, 180)) : null;
                 $shippedAt = $isShipped ? $this->addHours($paidAt, random_int(6, 72)) : null;
                 $completedAt = $isCompleted ? $this->addHours($shippedAt, random_int(72, 336)) : null;
+                $cancelAt = $status === 'CANCELLED' ? $this->addMinutes($createdAt, random_int(10, 600)) : null;
+                $refundCreated = $approvedAt = null;
+                if ($status === 'REFUNDING' || $status === 'REFUNDED') {
+                    $refundCreated = $status === 'REFUNDING'
+                        ? $this->addHours($createdAt, random_int(48, 160))
+                        : $this->addHours($shippedAt ?? $paidAt, random_int(48, 400));
+                    $approvedAt = $status === 'REFUNDED' ? $this->addHours($refundCreated, random_int(2, 72)) : null;
+                }
+
+                // 穿越防护:创建时间靠近今天时,正推的最后一步会落到未来。
+                // 检测到穿越则整条时间线平移到过去(最后一步落在最近 24h 内),
+                // 相对间隔不变,时间线自洽。
+                $timePoints = array_filter([$cancelAt, $paidAt, $shippedAt, $completedAt, $refundCreated, $approvedAt]);
+                $lastTs = $timePoints ? max(array_map('strtotime', $timePoints)) : strtotime($createdAt);
+                if ($lastTs > time()) {
+                    $shift = $lastTs - (time() - random_int(0, 86400));
+                    $createdAt = date('Y-m-d H:i:s', strtotime($createdAt) - $shift);
+                    foreach (['paidAt', 'shippedAt', 'completedAt', 'cancelAt', 'refundCreated', 'approvedAt'] as $var) {
+                        if ($$var !== null) {
+                            $$var = date('Y-m-d H:i:s', strtotime($$var) - $shift);
+                        }
+                    }
+                }
 
                 $orderNo = 'CE'.str_replace('-', '', $day).str_pad((string) $this->orderSeq, 4, '0', STR_PAD_LEFT);
 
@@ -187,19 +211,18 @@ class GenerateMegaData extends Command
                     $logSql[] = $this->logRow($id, 'PENDING_PAYMENT', 'PAID', '支付成功', 'system', $paidAt);
                 }
                 if ($status === 'CANCELLED') {
-                    $logSql[] = $this->logRow($id, 'PENDING_PAYMENT', 'CANCELLED', '取消订单，库存已返还', 'agent', $this->addMinutes($createdAt, random_int(10, 600)));
+                    $logSql[] = $this->logRow($id, 'PENDING_PAYMENT', 'CANCELLED', '取消订单，库存已返还', 'agent', $cancelAt);
                 }
+                // 运单号只生成一次:物流日志与订单字段复用同一个
+                $trackingNo = $isShipped ? $this->trackingNo() : null;
                 if ($isShipped) {
-                    $logSql[] = $this->logRow($id, 'PAID', 'SHIPPED', '发货，运单号 '.$this->trackingNo(), 'admin', $shippedAt);
+                    $logSql[] = $this->logRow($id, 'PAID', 'SHIPPED', '发货，运单号 '.$trackingNo, 'admin', $shippedAt);
                 }
                 if ($isCompleted) {
                     $logSql[] = $this->logRow($id, 'SHIPPED', 'COMPLETED', '客户签收', 'system', $completedAt);
                 }
                 if ($status === 'REFUNDING' || $status === 'REFUNDED') {
                     $this->refundSeq++;
-                    $refundCreated = $status === 'REFUNDING'
-                        ? $this->addHours($createdAt, random_int(48, 160))
-                        : $this->addHours($shippedAt ?? $paidAt, random_int(48, 400));
                     $refundNo = 'RF'.preg_replace('/[^0-9]/', '', $refundCreated).str_pad((string) $this->refundSeq, 4, '0', STR_PAD_LEFT);
                     $amount = round($total * (float) $this->weightedPick([1.0 => 70, 0.5 => 20, 0.3 => 10]), 2);
                     $before = $this->weightedPick(['PAID' => 30, 'SHIPPED' => 45, 'COMPLETED' => 25]);
@@ -213,7 +236,11 @@ class GenerateMegaData extends Command
                     }
                 }
 
-                $orderRows[] = '('.$id.','.$customerId.",'".$orderNo."','".$status."','".$currency."',".$rate.','.$total.','.$total.','.$this->addressSql().','.$this->trackingNoOrNull($isShipped).','.$this->logisticsOrNull($isShipped).','.$this->dtOrNull($paidAt).','.$this->dtOrNull($shippedAt).','.$this->dtOrNull($completedAt).",'".$createdAt."','".$createdAt."')";
+                $logistics = $isCompleted ? 'DELIVERED'
+                    : ($isShipped ? ['IN_TRANSIT', 'IN_CUSTOMS', 'OUT_FOR_DELIVERY'][array_rand(['IN_TRANSIT', 'IN_CUSTOMS', 'OUT_FOR_DELIVERY'])]
+                    : 'PENDING');
+                $trackingSql = $trackingNo !== null ? "'".$trackingNo."'" : 'NULL';
+                $orderRows[] = '('.$id.','.$customerId.",'".$orderNo."','".$status."','".$currency."',".$rate.','.$total.','.$total.','.$this->addressSql().','.$trackingSql.",'".$logistics."',".$this->dtOrNull($paidAt).','.$this->dtOrNull($shippedAt).','.$this->dtOrNull($completedAt).",'".$createdAt."','".$createdAt."')";
                 $itemRows = array_merge($itemRows, $itemSql);
                 $logRows = array_merge($logRows, $logSql);
 

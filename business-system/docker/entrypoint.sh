@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 set -e
 
 # 1. APP_KEY 缺失时生成（镜像内只有 .env.example）
@@ -6,15 +6,24 @@ if [ -z "$APP_KEY" ]; then
   php artisan key:generate --force
 fi
 
-# 2. 等待数据库就绪（最多 30s）
+# 2. 等待数据库就绪(最多 30s):等"可查询"而不是"可连接"
+#    fsockopen 只验端口,PG 在 starting up 阶段端口已监听但拒绝查询,
+#    用 PDO 执行 SELECT 1 只有数据库真正 ready 才成功。
 echo "等待数据库就绪..."
 php -r '
 $host = getenv("DB_HOST") ?: "postgres";
 $port = getenv("DB_PORT") ?: "5432";
+$db   = getenv("DB_DATABASE") ?: "cross_ecommerce";
+$user = getenv("DB_USERNAME") ?: "ce_app";
+$pass = getenv("DB_PASSWORD") ?: "";
 for ($i = 0; $i < 30; $i++) {
-    $conn = @fsockopen($host, (int)$port, $errno, $errstr, 1);
-    if ($conn) { fclose($conn); exit(0); }
-    sleep(1);
+    try {
+        $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$db", $user, $pass);
+        $pdo->query("SELECT 1");
+        exit(0);
+    } catch (Throwable $e) {
+        sleep(1);
+    }
 }
 fwrite(STDERR, "数据库连接超时\n");
 exit(1);

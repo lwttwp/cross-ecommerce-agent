@@ -1,0 +1,271 @@
+{
+  "total": 34,
+  "passed": 34,
+  "rate": 100.0,
+  "by_category": {
+    "订单查询": {
+      "passed": 8,
+      "total": 8
+    },
+    "物流跟踪": {
+      "passed": 4,
+      "total": 4
+    },
+    "退款售后": {
+      "passed": 6,
+      "total": 6
+    },
+    "政策问答": {
+      "passed": 6,
+      "total": 6
+    },
+    "报表任务": {
+      "passed": 4,
+      "total": 4
+    },
+    "边界异常": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "results": [
+    {
+      "id": "query-01",
+      "category": "订单查询",
+      "input": "查一下 CE202608241027 这个订单",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "query-02",
+      "category": "订单查询",
+      "input": "订单 CE202608240637 什么状态",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "query-03",
+      "category": "订单查询",
+      "input": "订单 CE202608240211 什么状态",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "query-04",
+      "category": "订单查询",
+      "input": "最近一周的订单有哪些",
+      "passed": true,
+      "note": "未出现禁止词"
+    },
+    {
+      "id": "query-05",
+      "category": "订单查询",
+      "input": "查一下已发货的订单",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "query-06",
+      "category": "订单查询",
+      "input": "查一下客户 Jennifer Martinez 的订单",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "query-07",
+      "category": "订单查询",
+      "input": "订单 CE202699999999 存在吗",
+      "passed": true,
+      "note": "命中 ['不存在']"
+    },
+    {
+      "id": "query-08",
+      "category": "订单查询",
+      "input": "SKU-1001 还有多少库存",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "track-01",
+      "category": "物流跟踪",
+      "input": "订单 CE202608241027 到哪了",
+      "passed": true,
+      "note": "命中 ['CE-TRK-4265E6', '清关', '运输', '派送']"
+    },
+    {
+      "id": "track-02",
+      "category": "物流跟踪",
+      "input": "查一下物流单号 CE-TRK-4265E6",
+      "passed": true,
+      "note": "命中 ['CE-TRK-4265E6', '轨迹']"
+    },
+    {
+      "id": "track-03",
+      "category": "物流跟踪",
+      "input": "订单 CE202608240637 的物流到哪了",
+      "passed": true,
+      "note": "命中 ['未发货', '暂无']"
+    },
+    {
+      "id": "track-04",
+      "category": "物流跟踪",
+      "input": "查一下订单 CE202699999999 的物流轨迹",
+      "passed": true,
+      "note": "命中 ['不存在']"
+    },
+    {
+      "id": "refund-01",
+      "category": "退款售后",
+      "input": "订单 CE202512081613 申请退款，不想要了",
+      "passed": true,
+      "note": "中断类型=['refund_confirm']"
+    },
+    {
+      "id": "refund-02",
+      "category": "退款售后",
+      "input": "帮我把 CE202602050664 退款，商品有质量问题",
+      "passed": true,
+      "note": "中断类型=['refund_confirm']"
+    },
+    {
+      "id": "refund-03",
+      "category": "退款售后",
+      "input": "订单 CE202608240211 申请退款",
+      "passed": true,
+      "note": "命中 ['不支持']"
+    },
+    {
+      "id": "refund-04",
+      "category": "退款售后",
+      "input": "订单 CE202608241140 申请退款",
+      "passed": true,
+      "note": "命中 ['不支持', '待支付']"
+    },
+    {
+      "id": "refund-05",
+      "category": "退款售后",
+      "input": "订单 CE202608240006 再申请一次退款",
+      "passed": true,
+      "note": "命中 ['不支持', '退款中']"
+    },
+    {
+      "id": "refund-06",
+      "category": "退款售后",
+      "input": "订单 CE202699999999 申请退款",
+      "passed": true,
+      "note": "命中 ['不存在', '查询失败']"
+    },
+    {
+      "id": "policy-01",
+      "category": "政策问答",
+      "input": "发美国的订单关税谁承担",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "policy-02",
+      "category": "政策问答",
+      "input": "支持无理由退货吗，几天内",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "policy-03",
+      "category": "政策问答",
+      "input": "礼品卡买了不想要能退钱吗",
+      "passed": true,
+      "note": "命中 ['不支持']"
+    },
+    {
+      "id": "policy-04",
+      "category": "政策问答",
+      "input": "质量问题退货运费谁承担",
+      "passed": true,
+      "note": "关键词全部命中"
+    },
+    {
+      "id": "policy-05",
+      "category": "政策问答",
+      "input": "退款后多久能到账",
+      "passed": true,
+      "note": "命中 ['工作日', '原路']"
+    },
+    {
+      "id": "policy-06",
+      "category": "政策问答",
+      "input": "火星支持配送吗",
+      "passed": true,
+      "note": "命中 ['未收录', '转人工', '暂未']"
+    },
+    {
+      "id": "report-01",
+      "category": "报表任务",
+      "input": "生成 6 月的销售报表",
+      "passed": true,
+      "note": "命中 ['TSK', '任务']"
+    },
+    {
+      "id": "report-02",
+      "category": "报表任务",
+      "input": "上个月退款率多少",
+      "passed": true,
+      "note": "命中 ['任务', '退款率']"
+    },
+    {
+      "id": "report-03",
+      "category": "报表任务",
+      "input": "导出 8 月的订单数据",
+      "passed": true,
+      "note": "命中 ['TSK', '任务', '导出']"
+    },
+    {
+      "id": "report-04",
+      "category": "报表任务",
+      "input": "生成销售报表",
+      "passed": true,
+      "note": "命中 ['月份', '日期', '范围']"
+    },
+    {
+      "id": "edge-01",
+      "category": "边界异常",
+      "input": "把订单 CE202608241027 的收货地址改到纽约",
+      "passed": true,
+      "note": "命中 ['无法']"
+    },
+    {
+      "id": "edge-02",
+      "category": "边界异常",
+      "input": "取消订单 CE202608241027",
+      "passed": true,
+      "note": "命中 ['无法']"
+    },
+    {
+      "id": "edge-03",
+      "category": "边界异常",
+      "input": "今天天气怎么样",
+      "passed": true,
+      "note": "未出现禁止词"
+    },
+    {
+      "id": "edge-04",
+      "category": "边界异常",
+      "input": "帮我审批一下退款单",
+      "passed": true,
+      "note": "命中 ['管理员', '审批']"
+    },
+    {
+      "id": "edge-05",
+      "category": "边界异常",
+      "input": "你好",
+      "passed": true,
+      "note": "无异常即通过"
+    },
+    {
+      "id": "edge-06",
+      "category": "边界异常",
+      "input": "查一下 999999 这个客户的信息",
+      "passed": true,
+      "note": "命中 ['不存在']"
+    }
+  ]
+}

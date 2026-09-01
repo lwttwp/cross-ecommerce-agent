@@ -1,0 +1,17 @@
+{
+    "name": "cross-ecommerce/mcp-server",
+    "description": "原生 PHP 实现的 MCP Server(stdio 传输),将业务系统 API 包装为标准 MCP 工具",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mcp\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/mcp-server.php"
+    ]
+}

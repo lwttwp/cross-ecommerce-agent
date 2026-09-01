@@ -17,7 +17,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ce_app -d cross_ecommerce"]
       interval: 5s
       timeout: 3s
-      retries: 12
+      retries: 30   # 12→30: 首次冷启动建库可能超 60s,留 150s 窗口
 
   rabbitmq:
     image: rabbitmq:3-management-alpine

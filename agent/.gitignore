@@ -7,6 +7,10 @@ venv/
 # 环境变量（含密钥）
 .env
 
+# RAG 入库增量标记（运行时生成）
+md5.txt
+src/cross_ecommerce_agent/rag/test.txt
+
 # 向量库数据
 data/
 

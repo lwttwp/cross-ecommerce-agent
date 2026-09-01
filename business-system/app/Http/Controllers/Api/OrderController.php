@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Api;
-
+use Illuminate\Support\Carbon;
 use App\Exceptions\BusinessException;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
@@ -22,8 +22,13 @@ class OrderController extends Controller
         $query->when($request->filled('customer_id'), fn ($q) => $q->where('customer_id', (int) $request->input('customer_id')));
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
         $query->when($request->filled('currency'), fn ($q) => $q->where('currency', strtoupper($request->string('currency'))));
-        $query->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->string('date_from')));
-        $query->when($request->filled('date_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->string('date_to')));
+
+        $query->when($request->filled('date_from'), function ($q) use ($request) {
+            $q->where('created_at', '>=', Carbon::parse($request->string('date_from'))->startOfDay());
+        });
+        $query->when($request->filled('date_to'), function ($q) use ($request) {
+            $q->where('created_at', '<=', Carbon::parse($request->string('date_to'))->endOfDay());
+        });
         $query->when($request->filled('keyword'), function ($q) use ($request) {
             $keyword = $request->string('keyword');
             $q->where(function ($qq) use ($keyword) {
@@ -191,7 +196,7 @@ class OrderController extends Controller
                 'operator' => $l->operator,
                 'at' => $l->created_at?->toIso8601String(),
             ])->values(),
-            'created_at' => $order->created_at?->toIso8601String(),
+            'created_at' => $order->created_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
         ];
     }
 }

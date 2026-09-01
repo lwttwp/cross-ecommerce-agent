@@ -47,10 +47,15 @@ class RefundController extends Controller
             $q->whereHas('order', fn ($o) => $o->where('order_no', $request->string('order_no')));
         });
         $query->orderByDesc('created_at');
+        $pageSize = min((int) $request->input('page_size', 20), 100);
+        $paginator = $query->paginate($pageSize)->withQueryString();
 
-        $items = $query->get()->map(fn (Refund $r) => $this->format($r));
-
-        return ApiResponse::ok(['items' => $items, 'total' => $items->count()]);
+        return ApiResponse::ok([
+            'items' => $paginator->getCollection()->map(fn (Refund $r) => $this->format($r))->values(),
+            'total' => $paginator->total(),
+            'page' => $paginator->currentPage(),
+            'page_size' => $paginator->perPage(),
+        ]);
     }
 
     /** 人工审批：通过（admin） */
@@ -100,8 +105,8 @@ class RefundController extends Controller
             'status' => $refund->status->value,
             'status_label' => $refund->status->label(),
             'order_status_before' => $refund->order_status_before,
-            'approved_at' => $refund->approved_at?->toIso8601String(),
-            'created_at' => $refund->created_at?->toIso8601String(),
+            'approved_at' => $refund->approved_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
+            'created_at' => $refund->created_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
         ];
     }
 }
