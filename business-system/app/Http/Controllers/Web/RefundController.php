@@ -6,6 +6,7 @@ use App\Exceptions\BusinessException;
 use App\Http\Controllers\Controller;
 use App\Models\Refund;
 use App\Services\OrderService;
+use App\Services\RefundEventPublisher;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -51,6 +52,16 @@ class RefundController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
+        app(RefundEventPublisher::class)->publish([
+            'refund_no' => $refund->refund_no,
+            'order_no' => $refund->order?->order_no,
+            'result' => 'approved',
+            'amount' => (float) $refund->amount,
+            'currency' => $refund->currency,
+            'approved_at' => now()->toDateTimeString(),
+        ]);
+
         return back()->with('success', "退款单 {$refund->refund_no} 已通过");
     }
 
@@ -67,6 +78,16 @@ class RefundController extends Controller
         } catch (BusinessException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
+        app(RefundEventPublisher::class)->publish([
+            'refund_no' => $refund->refund_no,
+            'order_no' => $refund->order?->order_no,
+            'result' => 'rejected',
+            'amount' => (float) $refund->amount,
+            'currency' => $refund->currency,
+            'approved_at' => now()->toDateTimeString(),
+        ]);
 
         return back()->with('success', "退款单 {$refund->refund_no} 已驳回");
     }

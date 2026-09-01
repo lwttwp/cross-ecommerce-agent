@@ -6,8 +6,7 @@
 收到事件后组织面向用户的通知文本 —— 事件驱动,Agent 无需轮询/长挂起。
 
 用法:
-    .venv\Scripts\python refund_consumer.py
-
+    .venv\\Scripts\\python refund_consumer.py
 RabbitMQ 连接参数优先取 agent/.env 的 RABBITMQ_* 变量,
 默认 127.0.0.1:5673(宿主映射的 docker ce-rabbitmq)。
 """
