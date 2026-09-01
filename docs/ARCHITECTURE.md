@@ -285,7 +285,9 @@ sequenceDiagram
     A-->>U: 退款申请已通过，订单已退款 $xx.xx（折合 ¥xxx）
 ```
 
-### 7.3.1 生产形态（方案 B）：事件驱动审批（2026-09-01 决策）
+### 7.3.1 生产形态（方案 B）：事件驱动审批（2026-09-01 决策，已落地）
+
+> ✅ **2026-09-01 已实现**：`RefundEventPublisher`（Laravel 审批后发布 `refund_events` 持久化队列）+ `agent/refund_consumer.py`（订阅事件异步通知）；Agent 提交退款后不再挂起（第二个 interrupt 已移除，第一个确认中断保留）。
 
 > M3 先按 7.3（方案 A：interrupt 暂停/恢复）打通闭环；生产切换为事件驱动，避免进程长挂起与双重审批。
 

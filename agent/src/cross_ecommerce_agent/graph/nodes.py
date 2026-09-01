@@ -158,18 +158,9 @@ def refund_node(state: OverAllState) -> OverAllState:
     logger.info(f"退款处理结果: {str(result)}")
     if "error" in result:
         return {"answer": f"退款申请失败: {result['error']}"}
-
-    refunds = query_refunds.invoke({
-        "order_no": order["order_no"],
-    })
-    if "error" in refunds:
-        return {"answer": f"退款申请失败: {result['error']}"}
-    latest  = latest_refund(refunds)
-    if latest["status"] == "approved":
-        return {"answer": f"退款已审批通过,金额 {latest['amount']} {latest['currency']} 将原路退回"}
-    if latest["status"] == "rejected":
-        return {"answer": f"退款申请被驳回,可联系管理员了解原因"}
-    return {"answer": "退款仍在审批中,请稍后再询问"}
+    # 方案 B: 提交后不挂起,审批结果由 RabbitMQ refund_events 事件驱动通知(见 docs 7.3.1)
+    refund_no = result.get('refund_no', '')
+    return {"answer": f"退款申请已提交({refund_no}),等待管理员审批,审批结果会第一时间通知您"}
 
 def extract_refund_args(text):
     """

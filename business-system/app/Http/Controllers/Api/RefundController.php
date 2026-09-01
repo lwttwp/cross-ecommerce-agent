@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Refund;
 use App\Services\OrderService;
+use App\Services\RefundEventPublisher;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -72,6 +73,16 @@ class RefundController extends Controller
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
 
+        // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
+        app(RefundEventPublisher::class)->publish([
+            'refund_no' => $refund->refund_no,
+            'order_no' => $refund->order?->order_no,
+            'result' => 'approved',
+            'amount' => (float) $refund->amount,
+            'currency' => $refund->currency,
+            'approved_at' => now()->toDateTimeString(),
+        ]);
+
         return ApiResponse::ok($this->format($refund), '退款审批通过');
     }
 
@@ -88,6 +99,16 @@ class RefundController extends Controller
         } catch (BusinessException $e) {
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
+
+        // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
+        app(RefundEventPublisher::class)->publish([
+            'refund_no' => $refund->refund_no,
+            'order_no' => $refund->order?->order_no,
+            'result' => 'rejected',
+            'amount' => (float) $refund->amount,
+            'currency' => $refund->currency,
+            'approved_at' => now()->toDateTimeString(),
+        ]);
 
         return ApiResponse::ok($this->format($refund), '退款申请已驳回');
     }

@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # for msg in res['messages']:
     #     msg.pretty_print()
 
-    res = graph.invoke({"user_input": "订单CE202608241653的退款进度"}, config=config)
+    res = graph.invoke({"user_input": "SKU-1001还有多少库存"}, config=config)
     print(res)
     print("=" * 60)
     if "__interrupt__" in res:
