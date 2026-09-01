@@ -35,18 +35,28 @@ copy .env.example .env
 
 ## 运行
 
+**stdio(本地进程,默认):**
+
 ```bash
 php bin/mcp-server.php
-# 启动后监听 stdin,每行一个 JSON-RPC 消息(换行分隔,无 Content-Length 头)
+# 监听 stdin,每行一个 JSON-RPC 消息(换行分隔,无 Content-Length 头)
 ```
 
-MCP 客户端(如 `langchain-mcp-adapters` / `mcp` SDK)以 stdio transport 方式拉起即可。
+**streamable HTTP(远程部署):**
+
+```bash
+php -S 127.0.0.1:8081 bin/http_router.php
+# POST /message → JSON-RPC(无流模式);GET /sse → 通知流;GET /health
+# 客户端: mcp SDK streamablehttp_client("http://127.0.0.1:8081/message")
+```
 
 ## 测试
 
 ```bash
 php tests/client_smoke.php   # 单元级:协议握手/工具列表/参数校验/错误码
-php tests/stdio_e2e.php      # 端到端:真实进程管道通信 + 真实业务调用
+php tests/stdio_e2e.php      # stdio 端到端:真实进程管道通信 + 真实业务调用
+python tests/http_e2e.py     # HTTP 端到端:streamable HTTP 传输 + 真实业务调用
+python tests/langgraph_connect.py  # LangGraph 经 stdio 拉起 MCP Server 全链路
 ```
 
 ## 协议实现(MCP 2025-03-26)
