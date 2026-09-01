@@ -10,7 +10,7 @@
 {"id": "track-02", "category": "物流跟踪", "input": "查一下物流单号 CE-TRK-FE452A", "expect": {"type": "contains_any", "keywords": ["CE-TRK-FE452A", "轨迹", "已发货"]}}
 {"id": "track-03", "category": "物流跟踪", "input": "订单 CE202608240637 的物流到哪了", "expect": {"type": "contains_any", "keywords": ["未发货", "暂无", "还没有"]}}
 {"id": "track-04", "category": "物流跟踪", "input": "查一下订单 CE202699999999 的物流轨迹", "expect": {"type": "contains_any", "keywords": ["不存在", "未找到", "未查到"]}}
-{"id": "refund-01", "category": "退款售后", "input": "订单 CE202410241277 申请退款，不想要了", "expect": {"type": "interrupt", "keyword": "refund_confirm"}}
+{"id": "refund-01", "category": "退款售后", "input": "订单 CE202502201150 申请退款，不想要了", "expect": {"type": "interrupt", "keyword": "refund_confirm"}}
 {"id": "refund-02", "category": "退款售后", "input": "帮我把 CE202602050664 退款，商品有质量问题", "expect": {"type": "interrupt", "keyword": "refund_confirm"}}
 {"id": "refund-03", "category": "退款售后", "input": "订单 CE202608240211 申请退款", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "不能"]}}
 {"id": "refund-04", "category": "退款售后", "input": "订单 CE202608241140 申请退款", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "待支付"]}}

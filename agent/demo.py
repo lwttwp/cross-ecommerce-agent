@@ -58,19 +58,19 @@ if __name__ == "__main__":
         show(title, text, "demo-" + uuid.uuid4().hex[:8])
 
     print("=" * 64)
-    print("5. 退款申请(human-in-the-loop)")
-    text = "订单 CE202512081613 申请退款，不想要了"
+    print("5. 退款申请(方案 B: 确认中断 → 提交 → 事件驱动审批)")
+    text = "订单 CE202502201150 申请退款，不想要了"
     config = {"configurable": {"thread_id": "demo-refund"}}
     res = graph.invoke({"user_input": text}, config=config)
     if "__interrupt__" in res:
         value = res["__interrupt__"][0].value
-        print(f"⏸️ 中断[{value.get('type')}]: {value.get('message')}")
+        print(f"⏸️ 中断[{value.get('type')}]: 请确认退款申请")
         ans = input("   是否确认提交退款申请? (y/n) > ").strip().lower()
         res = graph.invoke(Command(resume=ans), config=config)
-        if "__interrupt__" in res:
-            value = res["__interrupt__"][0].value
-            print(f"📋 退款已提交,等待管理员审批 —— 第二个中断点[{value.get('type')}]")
-            print("   生产形态(方案 B)下此处不挂起,审批结果由 RabbitMQ 事件驱动通知")
-        else:
-            print(f"🤖 助手: {res.get('answer')}")
+    if "__interrupt__" in res:
+        print("⚠️ 意外中断:", [i.value.get('type') for i in res['__interrupt__']])
+    else:
+        print(f"🤖 助手: {res.get('answer')}")
+        print("   (方案 B: 提交后不挂起,审批结果由 RabbitMQ refund_events 事件驱动通知)")
+        print("   提示: 用 admin 审批该退款单后,运行 refund_consumer.py 可看到实时通知")
     print("\n演示结束 ✅")

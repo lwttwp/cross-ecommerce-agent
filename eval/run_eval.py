@@ -116,6 +116,7 @@ def main():
     ap.add_argument("--max", type=int, help="最多跑 N 条")
     ap.add_argument("--json", help="结果报告输出路径")
     ap.add_argument("--timeout", type=int, default=120, help="单条超时秒数")
+    ap.add_argument("--retry", type=int, default=1, help="失败用例最多重试次数(区分 LLM 波动与真 bug)")
     args = ap.parse_args()
 
     with open(CASES_PATH, encoding="utf-8") as f:
@@ -135,16 +136,30 @@ def main():
         print(f"{tag} 输入: {case['input']}", flush=True)
         result = run_case(case, timeout=args.timeout)
         passed, note = judge(case, result)
-        results.append({"case": case, "result": result, "passed": passed, "note": note})
+        attempts, flaky = 1, False
+        while not passed and attempts <= args.retry:
+            # 重试用全新 thread_id,排除会话状态干扰
+            result = run_case(case, timeout=args.timeout)
+            passed, note = judge(case, result)
+            attempts += 1
+            if passed:
+                flaky = True  # 重试后才过 = LLM 波动,非稳定 bug
+        results.append({"case": case, "result": result, "passed": passed,
+                        "note": note, "attempts": attempts, "flaky": flaky})
         mark = "✅" if passed else "❌"
-        print(f"   {mark} {note}")
+        extra = f"(第{attempts}次通过,波动)" if flaky else ""
+        print(f"   {mark} {note} {extra}")
         print()
 
     # ---------- 汇总 ----------
     total = len(results)
     passed_n = sum(1 for r in results if r["passed"])
+    flaky_n = sum(1 for r in results if r.get("flaky"))
     print("=" * 60)
     print(f"总体通过率: {passed_n}/{total} = {passed_n / total * 100:.1f}%")
+    if flaky_n:
+        print(f"   (其中 {flaky_n} 条重试后通过 = LLM 波动,首次通过率 "
+              f"{(passed_n - flaky_n)}/{total} = {(passed_n - flaky_n) / total * 100:.1f}%)")
 
     by_cat = {}
     for r in results:
@@ -173,9 +188,11 @@ def main():
             "total": total, "passed": passed_n,
             "rate": round(passed_n / total * 100, 1) if total else 0,
             "by_category": {k: {"passed": v[0], "total": v[1]} for k, v in by_cat.items()},
+            "flaky": flaky_n,
             "results": [
                 {"id": r["case"]["id"], "category": r["case"]["category"],
-                 "input": r["case"]["input"], "passed": r["passed"], "note": r["note"]}
+                 "input": r["case"]["input"], "passed": r["passed"], "note": r["note"],
+                 "attempts": r.get("attempts", 1), "flaky": r.get("flaky", False)}
                 for r in results
             ],
         }
