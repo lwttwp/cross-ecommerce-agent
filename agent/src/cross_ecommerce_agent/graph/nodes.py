@@ -11,6 +11,8 @@ from cross_ecommerce_agent.tools.business import query_orders,get_order,create_o
     update_order_address,cancel_order,get_tracking,query_products,get_product,\
     get_customer,apply_refund,query_refunds,create_task,get_task,download_task
 from langchain_core.messages import HumanMessage,ToolMessage,SystemMessage,AIMessage
+from langchain_core.runnables import RunnableConfig
+from cross_ecommerce_agent.refund_mapper import record as map_record
 from langgraph.graph import END
 from langgraph.types import interrupt
 import logging
@@ -120,7 +122,7 @@ def latest_refund(refunds):
     items = refunds.get("items", [])
     return max(items, key=lambda r: r["created_at"]) if items else {}
 
-def refund_node(state: OverAllState) -> OverAllState:
+def refund_node(state: OverAllState, config: RunnableConfig) -> OverAllState:
     order_no = state.get('order_no', '')
     # llm抽取参数
     args = extract_refund_args(state["user_input"])
@@ -160,6 +162,12 @@ def refund_node(state: OverAllState) -> OverAllState:
         return {"answer": f"退款申请失败: {result['error']}"}
     # 方案 B: 提交后不挂起,审批结果由 RabbitMQ refund_events 事件驱动通知(见 docs 7.3.1)
     refund_no = result.get('refund_no', '')
+    # 记录 refund_no -> thread_id,审批事件到达时可定位回原会话
+    thread_id = (config.get('configurable') or {}).get('thread_id')
+    logger.info(f"DEBUG refund map: refund_no={refund_no!r} thread_id={thread_id!r} has_config={config is not None}")
+    if refund_no and thread_id:
+        map_record(refund_no, thread_id)
+        logger.info(f"退款映射已记录: {refund_no} -> {thread_id}")
     return {"answer": f"退款申请已提交({refund_no}),等待管理员审批,审批结果会第一时间通知您"}
 
 def extract_refund_args(text):

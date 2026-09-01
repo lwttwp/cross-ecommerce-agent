@@ -11,6 +11,10 @@ venv/
 md5.txt
 src/cross_ecommerce_agent/rag/test.txt
 
+# 方案 B 运行时数据（退款会话映射 / 通知投递）
+refund_thread_map.json
+notifications/
+
 # 向量库数据
 data/
 
