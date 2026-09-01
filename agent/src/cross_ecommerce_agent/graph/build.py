@@ -67,15 +67,15 @@ if __name__ == "__main__":
     # for msg in res['messages']:
     #     msg.pretty_print()
 
-    res = graph.invoke({"user_input": "SKU-1001还有多少库存"}, config=config)
-    print(res)
-    print("=" * 60)
-    if "__interrupt__" in res:
-       for val in res["__interrupt__"]:
-           if val.value["type"] == "refund_confirm":
-               result = input("请确认退款申请？（y/n）")
-               approved_res = graph.invoke(Command(resume=result), config=config)
-               print(approved_res)
+    # res = graph.invoke({"user_input": "SKU-1001还有多少库存"}, config=config)
+    # print(res)
+    # print("=" * 60)
+    # if "__interrupt__" in res:
+    #    for val in res["__interrupt__"]:
+    #        if val.value["type"] == "refund_confirm":
+    #            result = input("请确认退款申请？（y/n）")
+    #            approved_res = graph.invoke(Command(resume=result), config=config)
+    #            print(approved_res)
 
 # res = graph.invoke({"user_input": "查一下 SKU-1028 这个商品"})
     # print(res)

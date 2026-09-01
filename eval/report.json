@@ -32,7 +32,7 @@
     {
       "id": "query-01",
       "category": "订单查询",
-      "input": "查一下 CE202608241027 这个订单",
+      "input": "查一下 CE202409010028 这个订单",
       "passed": true,
       "note": "关键词全部命中"
     },
@@ -88,16 +88,16 @@
     {
       "id": "track-01",
       "category": "物流跟踪",
-      "input": "订单 CE202608241027 到哪了",
+      "input": "订单 CE202409010028 到哪了",
       "passed": true,
-      "note": "命中 ['CE-TRK-4265E6', '清关', '运输', '派送']"
+      "note": "命中 ['CE-TRK-FE452A', '运输']"
     },
     {
       "id": "track-02",
       "category": "物流跟踪",
-      "input": "查一下物流单号 CE-TRK-4265E6",
+      "input": "查一下物流单号 CE-TRK-FE452A",
       "passed": true,
-      "note": "命中 ['CE-TRK-4265E6', '轨迹']"
+      "note": "命中 ['CE-TRK-FE452A', '轨迹']"
     },
     {
       "id": "track-03",
@@ -116,7 +116,7 @@
     {
       "id": "refund-01",
       "category": "退款售后",
-      "input": "订单 CE202512081613 申请退款，不想要了",
+      "input": "订单 CE202410241277 申请退款，不想要了",
       "passed": true,
       "note": "中断类型=['refund_confirm']"
     },
@@ -195,7 +195,7 @@
       "category": "政策问答",
       "input": "火星支持配送吗",
       "passed": true,
-      "note": "命中 ['未收录', '转人工', '暂未']"
+      "note": "命中 ['未收录', '转人工']"
     },
     {
       "id": "report-01",
@@ -209,7 +209,7 @@
       "category": "报表任务",
       "input": "上个月退款率多少",
       "passed": true,
-      "note": "命中 ['任务', '退款率']"
+      "note": "命中 ['TSK', '任务', '退款率']"
     },
     {
       "id": "report-03",
@@ -228,14 +228,14 @@
     {
       "id": "edge-01",
       "category": "边界异常",
-      "input": "把订单 CE202608241027 的收货地址改到纽约",
+      "input": "把订单 CE202409010028 的收货地址改到纽约",
       "passed": true,
       "note": "命中 ['无法']"
     },
     {
       "id": "edge-02",
       "category": "边界异常",
-      "input": "取消订单 CE202608241027",
+      "input": "取消订单 CE202409010028",
       "passed": true,
       "note": "命中 ['无法']"
     },
@@ -251,7 +251,7 @@
       "category": "边界异常",
       "input": "帮我审批一下退款单",
       "passed": true,
-      "note": "命中 ['管理员', '审批']"
+      "note": "命中 ['管理员', '无法', '审批']"
     },
     {
       "id": "edge-05",

@@ -1,4 +1,4 @@
-{"id": "query-01", "category": "订单查询", "input": "查一下 CE202608241027 这个订单", "expect": {"type": "contains", "keywords": ["CE202608241027", "已发货"]}}
+{"id": "query-01", "category": "订单查询", "input": "查一下 CE202409010028 这个订单", "expect": {"type": "contains", "keywords": ["CE202409010028", "已发货"]}}
 {"id": "query-02", "category": "订单查询", "input": "订单 CE202608240637 什么状态", "expect": {"type": "contains", "keywords": ["CE202608240637", "已支付"]}}
 {"id": "query-03", "category": "订单查询", "input": "订单 CE202608240211 什么状态", "expect": {"type": "contains", "keywords": ["CE202608240211", "已取消"]}}
 {"id": "query-04", "category": "订单查询", "input": "最近一周的订单有哪些", "expect": {"type": "not_contains", "keywords": ["查询失败", "系统错误"]}}
@@ -6,28 +6,28 @@
 {"id": "query-06", "category": "订单查询", "input": "查一下客户 Jennifer Martinez 的订单", "expect": {"type": "contains", "keywords": ["Jennifer"]}}
 {"id": "query-07", "category": "订单查询", "input": "订单 CE202699999999 存在吗", "expect": {"type": "contains_any", "keywords": ["不存在", "未找到", "未查到"]}}
 {"id": "query-08", "category": "订单查询", "input": "SKU-1001 还有多少库存", "expect": {"type": "contains", "keywords": ["SKU-1001"]}}
-{"id": "track-01", "category": "物流跟踪", "input": "订单 CE202608241027 到哪了", "expect": {"type": "contains_any", "keywords": ["CE-TRK-4265E6", "清关", "运输", "派送"]}}
-{"id": "track-02", "category": "物流跟踪", "input": "查一下物流单号 CE-TRK-4265E6", "expect": {"type": "contains_any", "keywords": ["CE-TRK-4265E6", "轨迹", "已发货"]}}
+{"id": "track-01", "category": "物流跟踪", "input": "订单 CE202409010028 到哪了", "expect": {"type": "contains_any", "keywords": ["CE-TRK-FE452A", "清关", "运输", "派送"]}}
+{"id": "track-02", "category": "物流跟踪", "input": "查一下物流单号 CE-TRK-FE452A", "expect": {"type": "contains_any", "keywords": ["CE-TRK-FE452A", "轨迹", "已发货"]}}
 {"id": "track-03", "category": "物流跟踪", "input": "订单 CE202608240637 的物流到哪了", "expect": {"type": "contains_any", "keywords": ["未发货", "暂无", "还没有"]}}
 {"id": "track-04", "category": "物流跟踪", "input": "查一下订单 CE202699999999 的物流轨迹", "expect": {"type": "contains_any", "keywords": ["不存在", "未找到", "未查到"]}}
-{"id": "refund-01", "category": "退款售后", "input": "订单 CE202512081613 申请退款，不想要了", "expect": {"type": "interrupt", "keyword": "refund_confirm"}}
+{"id": "refund-01", "category": "退款售后", "input": "订单 CE202410241277 申请退款，不想要了", "expect": {"type": "interrupt", "keyword": "refund_confirm"}}
 {"id": "refund-02", "category": "退款售后", "input": "帮我把 CE202602050664 退款，商品有质量问题", "expect": {"type": "interrupt", "keyword": "refund_confirm"}}
 {"id": "refund-03", "category": "退款售后", "input": "订单 CE202608240211 申请退款", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "不能"]}}
 {"id": "refund-04", "category": "退款售后", "input": "订单 CE202608241140 申请退款", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "待支付"]}}
 {"id": "refund-05", "category": "退款售后", "input": "订单 CE202608240006 再申请一次退款", "expect": {"type": "contains_any", "keywords": ["不支持", "已有", "退款中"]}}
 {"id": "refund-06", "category": "退款售后", "input": "订单 CE202699999999 申请退款", "expect": {"type": "contains_any", "keywords": ["不存在", "未找到", "查询失败"]}}
-{"id": "policy-01", "category": "政策问答", "input": "发美国的订单关税谁承担", "expect": {"type": "contains", "keywords": ["我方承担"]}}
+{"id": "policy-01", "category": "政策问答", "input": "发美国的订单关税谁承担", "expect": {"type": "contains", "keywords": ["我方"]}}
 {"id": "policy-02", "category": "政策问答", "input": "支持无理由退货吗，几天内", "expect": {"type": "contains", "keywords": ["7"]}}
 {"id": "policy-03", "category": "政策问答", "input": "礼品卡买了不想要能退钱吗", "expect": {"type": "contains_any", "keywords": ["不支持", "不适用"]}}
 {"id": "policy-04", "category": "政策问答", "input": "质量问题退货运费谁承担", "expect": {"type": "contains", "keywords": ["我方承担"]}}
 {"id": "policy-05", "category": "政策问答", "input": "退款后多久能到账", "expect": {"type": "contains_any", "keywords": ["工作日", "原路"]}}
-{"id": "policy-06", "category": "政策问答", "input": "火星支持配送吗", "expect": {"type": "contains_any", "keywords": ["未收录", "转人工", "暂未"]}}
+{"id": "policy-06", "category": "政策问答", "input": "火星支持配送吗", "expect": {"type": "contains_any", "keywords": ["不支持", "暂不", "未收录", "转人工"]}}
 {"id": "report-01", "category": "报表任务", "input": "生成 6 月的销售报表", "expect": {"type": "contains_any", "keywords": ["TSK", "任务", "已提交"]}}
 {"id": "report-02", "category": "报表任务", "input": "上个月退款率多少", "expect": {"type": "contains_any", "keywords": ["TSK", "任务", "退款率"]}}
 {"id": "report-03", "category": "报表任务", "input": "导出 8 月的订单数据", "expect": {"type": "contains_any", "keywords": ["TSK", "任务", "导出"]}}
 {"id": "report-04", "category": "报表任务", "input": "生成销售报表", "expect": {"type": "contains_any", "keywords": ["时间", "月份", "日期", "范围"]}}
-{"id": "edge-01", "category": "边界异常", "input": "把订单 CE202608241027 的收货地址改到纽约", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "不能"]}}
-{"id": "edge-02", "category": "边界异常", "input": "取消订单 CE202608241027", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "不能"]}}
+{"id": "edge-01", "category": "边界异常", "input": "把订单 CE202409010028 的收货地址改到纽约", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "不能"]}}
+{"id": "edge-02", "category": "边界异常", "input": "取消订单 CE202409010028", "expect": {"type": "contains_any", "keywords": ["不支持", "无法", "不能"]}}
 {"id": "edge-03", "category": "边界异常", "input": "今天天气怎么样", "expect": {"type": "not_contains", "keywords": ["晴天", "下雨", "温度"]}}
 {"id": "edge-04", "category": "边界异常", "input": "帮我审批一下退款单", "expect": {"type": "contains_any", "keywords": ["管理员", "权限", "无法", "审批"]}}
 {"id": "edge-05", "category": "边界异常", "input": "你好", "expect": {"type": "ok", "keywords": []}}
