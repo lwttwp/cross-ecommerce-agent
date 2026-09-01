@@ -1,7 +1,7 @@
 {
   "total": 34,
-  "passed": 33,
-  "rate": 97.1,
+  "passed": 34,
+  "rate": 100.0,
   "by_category": {
     "订单查询": {
       "passed": 8,
@@ -16,7 +16,7 @@
       "total": 6
     },
     "政策问答": {
-      "passed": 5,
+      "passed": 6,
       "total": 6
     },
     "报表任务": {
@@ -28,244 +28,313 @@
       "total": 6
     }
   },
+  "flaky": 0,
   "results": [
     {
       "id": "query-01",
       "category": "订单查询",
       "input": "查一下 CE202409010028 这个订单",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-02",
       "category": "订单查询",
       "input": "订单 CE202608240637 什么状态",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-03",
       "category": "订单查询",
       "input": "订单 CE202608240211 什么状态",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-04",
       "category": "订单查询",
       "input": "最近一周的订单有哪些",
       "passed": true,
-      "note": "未出现禁止词"
+      "note": "未出现禁止词",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-05",
       "category": "订单查询",
       "input": "查一下已发货的订单",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-06",
       "category": "订单查询",
       "input": "查一下客户 Jennifer Martinez 的订单",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-07",
       "category": "订单查询",
       "input": "订单 CE202699999999 存在吗",
       "passed": true,
-      "note": "命中 ['不存在']"
+      "note": "命中 ['不存在']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "query-08",
       "category": "订单查询",
       "input": "SKU-1001 还有多少库存",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "track-01",
       "category": "物流跟踪",
       "input": "订单 CE202409010028 到哪了",
       "passed": true,
-      "note": "命中 ['CE-TRK-FE452A', '运输']"
+      "note": "命中 ['CE-TRK-FE452A', '运输']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "track-02",
       "category": "物流跟踪",
       "input": "查一下物流单号 CE-TRK-FE452A",
       "passed": true,
-      "note": "命中 ['CE-TRK-FE452A', '轨迹']"
+      "note": "命中 ['CE-TRK-FE452A', '轨迹']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "track-03",
       "category": "物流跟踪",
       "input": "订单 CE202608240637 的物流到哪了",
       "passed": true,
-      "note": "命中 ['未发货', '暂无']"
+      "note": "命中 ['未发货', '暂无']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "track-04",
       "category": "物流跟踪",
       "input": "查一下订单 CE202699999999 的物流轨迹",
       "passed": true,
-      "note": "命中 ['不存在']"
+      "note": "命中 ['不存在']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "refund-01",
       "category": "退款售后",
       "input": "订单 CE202502201150 申请退款，不想要了",
       "passed": true,
-      "note": "中断类型=['refund_confirm']"
+      "note": "中断类型=['refund_confirm']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "refund-02",
       "category": "退款售后",
       "input": "帮我把 CE202602050664 退款，商品有质量问题",
       "passed": true,
-      "note": "中断类型=['refund_confirm']"
+      "note": "中断类型=['refund_confirm']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "refund-03",
       "category": "退款售后",
       "input": "订单 CE202608240211 申请退款",
       "passed": true,
-      "note": "命中 ['不支持']"
+      "note": "命中 ['不支持']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "refund-04",
       "category": "退款售后",
       "input": "订单 CE202608241140 申请退款",
       "passed": true,
-      "note": "命中 ['不支持', '待支付']"
+      "note": "命中 ['不支持', '待支付']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "refund-05",
       "category": "退款售后",
       "input": "订单 CE202608240006 再申请一次退款",
       "passed": true,
-      "note": "命中 ['不支持', '退款中']"
+      "note": "命中 ['不支持', '退款中']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "refund-06",
       "category": "退款售后",
       "input": "订单 CE202699999999 申请退款",
       "passed": true,
-      "note": "命中 ['不存在', '查询失败']"
+      "note": "命中 ['不存在', '查询失败']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "policy-01",
       "category": "政策问答",
       "input": "发美国的订单关税谁承担",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "policy-02",
       "category": "政策问答",
       "input": "支持无理由退货吗，几天内",
-      "passed": false,
-      "note": "缺少关键词 ['7'] | 回答: 根据退货政策，**支持无理由退货，签收后 30 天内**可申请退货或换货，但需注意以下限制条件：\n\n- **适用情形**：签收后 30 天内发现质量问题（破损、功能故障、发错货）[来源: return_policy.md]\n- **不支持无"
+      "passed": true,
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "policy-03",
       "category": "政策问答",
       "input": "礼品卡买了不想要能退钱吗",
       "passed": true,
-      "note": "命中 ['不支持']"
+      "note": "命中 ['不支持']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "policy-04",
       "category": "政策问答",
       "input": "质量问题退货运费谁承担",
       "passed": true,
-      "note": "关键词全部命中"
+      "note": "关键词全部命中",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "policy-05",
       "category": "政策问答",
       "input": "退款后多久能到账",
       "passed": true,
-      "note": "命中 ['工作日', '原路']"
+      "note": "命中 ['工作日', '原路']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "policy-06",
       "category": "政策问答",
       "input": "火星支持配送吗",
       "passed": true,
-      "note": "命中 ['不支持', '暂不', '未收录', '转人工']"
+      "note": "命中 ['不支持', '暂不', '未收录', '转人工']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "report-01",
       "category": "报表任务",
       "input": "生成 6 月的销售报表",
       "passed": true,
-      "note": "命中 ['TSK', '任务']"
+      "note": "命中 ['TSK', '任务']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "report-02",
       "category": "报表任务",
       "input": "上个月退款率多少",
       "passed": true,
-      "note": "命中 ['TSK', '任务', '退款率']"
+      "note": "命中 ['TSK', '任务', '退款率']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "report-03",
       "category": "报表任务",
       "input": "导出 8 月的订单数据",
       "passed": true,
-      "note": "命中 ['TSK', '任务', '导出']"
+      "note": "命中 ['TSK', '任务', '导出']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "report-04",
       "category": "报表任务",
       "input": "生成销售报表",
       "passed": true,
-      "note": "命中 ['月份', '日期', '范围']"
+      "note": "命中 ['月份', '日期', '范围']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "edge-01",
       "category": "边界异常",
       "input": "把订单 CE202409010028 的收货地址改到纽约",
       "passed": true,
-      "note": "命中 ['无法']"
+      "note": "命中 ['无法']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "edge-02",
       "category": "边界异常",
       "input": "取消订单 CE202409010028",
       "passed": true,
-      "note": "命中 ['无法']"
+      "note": "命中 ['无法']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "edge-03",
       "category": "边界异常",
       "input": "今天天气怎么样",
       "passed": true,
-      "note": "未出现禁止词"
+      "note": "未出现禁止词",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "edge-04",
       "category": "边界异常",
       "input": "帮我审批一下退款单",
       "passed": true,
-      "note": "命中 ['管理员', '审批']"
+      "note": "命中 ['管理员', '审批']",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "edge-05",
       "category": "边界异常",
       "input": "你好",
       "passed": true,
-      "note": "无异常即通过"
+      "note": "无异常即通过",
+      "attempts": 1,
+      "flaky": false
     },
     {
       "id": "edge-06",
       "category": "边界异常",
       "input": "查一下 999999 这个客户的信息",
       "passed": true,
-      "note": "命中 ['不存在']"
+      "note": "命中 ['不存在']",
+      "attempts": 1,
+      "flaky": false
     }
   ]
 }
