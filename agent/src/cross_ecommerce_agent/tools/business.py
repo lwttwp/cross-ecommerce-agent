@@ -70,7 +70,7 @@ def query_orders(order_no: str | None = None,
     """查询订单列表。按条件过滤,支持订单号/状态/关键词模糊搜索。
 
     Args:
-        order_no: 订单号,格式 CE+14位数字,精确匹配
+        order_no: 订单号,格式 CE+12位数字,精确匹配
         status: 订单状态枚举: PENDING_PAYMENT(待支付)/PAID(已支付)/
                 SHIPPED(已发货)/COMPLETED(已完成)/CANCELLED(已取消)/
                 REFUNDING(退款中)/REFUNDED(已退款)
@@ -104,7 +104,7 @@ def get_order(order_no: str) -> dict:
     """查询单个订单详情(含商品明细、时间线、折合人民币金额)。
 
     Args:
-        order_no: 订单号,格式 CE+14位数字
+        order_no: 订单号,格式 CE+12位数字
 
     Returns:
         订单完整信息: status/金额/客户/items/shipping_address/timeline
@@ -148,7 +148,7 @@ def update_order_address(order_no: str, address: dict) -> dict:
     """修改订单收货地址(写操作,仅未发货订单可改)。
 
     Args:
-        order_no: 订单号,格式 CE+14位数字
+        order_no: 订单号,格式 CE+12位数字
         address: 新地址,字段同 create_order 的 shipping_address:
             recipient_name/phone/country/city/address_line1/postal_code,
             state 可选
@@ -167,7 +167,7 @@ def cancel_order(order_no: str) -> dict:
     """取消订单(写操作,仅待支付 PENDING_PAYMENT 状态可取消)。
 
     Args:
-        order_no: 订单号,格式 CE+14位数字
+        order_no: 订单号,格式 CE+12位数字
 
     Returns:
         取消后的订单信息
@@ -183,7 +183,7 @@ def get_tracking(order_no: str) -> dict:
     """查询订单物流轨迹。
 
     Args:
-        order_no: 订单号,格式 CE+14位数字
+        order_no: 订单号,格式 CE+12位数字
 
     Returns:
         {order_no, tracking_no, logistics_status, logistics_label, timeline}
@@ -272,7 +272,7 @@ def apply_refund(order_no: str, reason: str, amount: float | None = None) -> dic
     """提交退款申请(写操作,提交后进入待审批 pending,由管理员人工审批)。
 
     Args:
-        order_no: 订单号,格式 CE+14位数字
+        order_no: 订单号,格式 CE+12位数字
         reason: 退款原因,必填,500字以内
         amount: 退款金额(可选),不传默认全额;单位与订单币种一致
 
@@ -299,7 +299,7 @@ def query_refunds(refund_no: str | None = None,
     Args:
         refund_no: 退款单号,精确匹配
         status: 退款状态(小写): pending(待审批)/approved(已通过)/rejected(已驳回)
-        order_no: 按订单号过滤,格式 CE+14位数字
+        order_no: 按订单号过滤,格式 CE+12位数字
         page: 页码,默认 1; page_size: 每页条数,默认 20,最大 100
 
     Returns:

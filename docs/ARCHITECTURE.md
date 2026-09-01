@@ -71,27 +71,29 @@ flowchart LR
 cross-ecommerce-agent/
 ├── business-system/            # Laravel 业务系统
 │   ├── app/
-│   │   ├── Modules/
-│   │   │   ├── Order/          # 订单（含状态机）
-│   │   │   ├── Product/        # 商品与库存
-│   │   │   ├── Customer/       # 客户（含脱敏）
-│   │   │   ├── Refund/         # 退款与审批
-│   │   │   └── Task/           # 异步任务
-│   │   └── Support/            # 统一响应、错误码、鉴权中间件
+│   │   ├── Http/Controllers/
+│   │   │   ├── Api/            # REST API（订单/商品/客户/退款/任务/健康）
+│   │   │   └── Web/            # Blade 后台（登录/仪表盘/审批/汇率）
+│   │   ├── Models/             # Customer/Order/Product/Refund/Task/ExchangeRate/...
+│   │   ├── Services/           # OrderService/RefundEventPublisher/ReportService
+│   │   ├── Support/            # ApiResponse 统一响应
+│   │   └── Http/Middleware/    # api.token 双角色鉴权中间件
 │   ├── database/
 │   │   ├── migrations/
 │   │   └── seeders/            # 造数脚本（100+ 订单）
 │   ├── routes/api.php
 │   └── docker/php/
 ├── agent/                      # LangGraph 应用
-│   ├── graph/                  # 节点、边、状态定义
-│   ├── nodes/                  # 路由 / 工具 / RAG / 报表 节点
-│   ├── tools/                  # 工具定义（名称、描述、参数 schema）
-│   ├── rag/                    # 文档分块、embedding、检索、重排
-│   └── prompts/                # 系统提示词
-├── mcp-server/                 # 原生 PHP MCP Server（无框架）
+│   └── src/cross_ecommerce_agent/
+│       ├── graph/              # 状态、节点、意图路由、图构建（build.py）
+│       ├── llm/                # DeepSeek 客户端
+│       ├── tools/              # 14 个工具定义（@tool + httpx REST 客户端）
+│       ├── rag/                # 文档分块、embedding、混合检索、查询重写
+│       ├── config.py           # 环境配置、提示词、退款确认阈值
+│       └── refund_mapper.py    # refund_no → thread_id 映射（审批事件回会话）
+├── mcp-server/                 # 原生 PHP MCP Server（无框架，stdio 传输）
 ├── docs/                       # PRD.md / ARCHITECTURE.md（本文件）
-├── eval/                       # 评测用例 + 评测脚本
+├── eval/                       # 评测用例（34 条）+ run_eval.py
 └── deploy/                     # 本地启动/停止脚本（start-all.bat / stop-all.bat）
 ```
 
@@ -177,7 +179,7 @@ erDiagram
 | POST | /orders/{order_no}/cancel   | 取消订单            | agent | 1s    |
 | GET  | /orders/{order_no}/tracking | 物流轨迹            | agent | 500ms |
 | GET  | /products                   | 商品查询（SKU/关键词）   | agent | 500ms |
-| GET  | /products/{sku}/stock       | 库存查询            | agent | 500ms |
+| GET  | /products/{sku}          | 商品详情（含库存）        | agent | 500ms |
 | GET  | /customers/{id}             | 客户详情 + 消费统计（脱敏） | agent | 500ms |
 | POST | /orders/{order_no}/refunds  | 申请退款 → pending  | agent | 1s    |
 | GET  | /refunds                    | 退款单查询           | agent | 500ms |
@@ -185,6 +187,7 @@ erDiagram
 | POST | /refunds/{id}/reject        | 审批驳回            | admin | 1s    |
 | POST | /tasks                      | 创建异步任务          | agent | 500ms |
 | GET  | /tasks/{task_no}            | 轮询任务状态/结果       | agent | 500ms |
+| GET  | /tasks/{task_no}/download | 下载导出文件（CSV）     | agent | 500ms |
 | GET  | /health                     | 健康检查            | 公开    | 200ms |
 
 ### 6.4 响应示例
@@ -220,49 +223,55 @@ erDiagram
 
 | 工具名                  | 描述（给 LLM）            | 参数                                                     | 对应 API                    |
 |----------------------|----------------------|--------------------------------------------------------|---------------------------|
-| query_order          | 按单号/客户/状态/日期查订单列表或详情 | order_no?, customer_id?, status?, date_from?, date_to? | GET /orders               |
-| track_order          | 查询订单物流轨迹             | order_no                                               | GET /orders/{no}/tracking |
-| query_product        | 查商品信息与库存             | sku?, keyword?                                         | GET /products             |
-| query_customer       | 查客户信息与消费统计           | customer_id?, email?                                   | GET /customers/{id}       |
+| query_orders         | 按订单号/状态/关键词/日期/币种查订单列表 | order_no?, status?, keyword?, date_from?, date_to?, currency? | GET /orders               |
+| get_order            | 订单详情（含状态时间线）        | order_no                                               | GET /orders/{no}          |
+| create_order         | 下单（事务扣库存）           | customer_id, items, shipping_address?                   | POST /orders              |
 | update_order_address | 修改未发货订单的收货地址         | order_no, new_address                                  | PUT /orders/{no}/address  |
+| cancel_order         | 取消订单                | order_no, reason?                                      | POST /orders/{no}/cancel  |
+| get_tracking         | 查询订单物流轨迹             | order_no                                               | GET /orders/{no}/tracking |
+| query_products       | 商品列表（SKU/关键词/状态）     | sku?, keyword?, status?, page?, page_size?              | GET /products             |
+| get_product          | 商品详情（含库存）           | sku                                                    | GET /products/{sku}       |
+| get_customer         | 查客户信息与消费统计（脱敏）      | customer_id                                            | GET /customers/{id}       |
 | apply_refund         | 提交退款申请（触发人工审批）       | order_no, reason, amount?                              | POST /orders/{no}/refunds |
-| query_refund         | 查退款单状态               | refund_no?, order_no?, status?                         | GET /refunds              |
-| ask_policy           | 售后政策知识问答（RAG）        | question                                               | 内部 RAG 检索                 |
-| create_report        | 创建异步报表任务             | type, date_from, date_to                               | POST /tasks               |
-| get_task_result      | 查询异步任务结果             | task_no                                                | GET /tasks/{no}           |
+| query_refunds        | 查退款单状态               | refund_no?, order_no?, status?, page?, page_size?       | GET /refunds              |
+| create_task          | 创建异步报表/导出任务          | type, params?                                          | POST /tasks               |
+| get_task             | 查询异步任务状态/结果          | task_no                                                | GET /tasks/{no}           |
+| download_task        | 下载导出文件（CSV）          | task_no                                                | GET /tasks/{no}/download  |
 
-> 规则：**写操作工具（apply_refund / update_order_address / create_report）在 Agent 侧执行前必须向用户复述确认**；退款最终由 admin 审批兜底。
+> 规则：**写操作工具（apply_refund / update_order_address / cancel_order / create_order / create_task）在 Agent 侧执行前必须向用户复述确认**；退款最终由 admin 审批兜底。
 
 ### 7.2 LangGraph 图设计
 
 ```mermaid
 flowchart TD
-    START[入口] --> ROUTER{意图路由}
-    ROUTER -->|查询类| TOOL[工具调用节点<br/>MCP Client]
-    ROUTER -->|操作类| CONFIRM[复述确认]
-    CONFIRM --> TOOL
-    ROUTER -->|退款| REFUND[退款申请]
-    REFUND --> HITL{human-in-the-loop<br/>interrupt 等待审批}
-    HITL -->|审批通过/驳回| RESUME[恢复执行]
-    ROUTER -->|政策问答| RAG[知识检索节点]
-    ROUTER -->|报表| REPORT[报表任务节点]
-    TOOL --> EVAL[结果校验/兜底]
-    RAG --> EVAL
-    REPORT --> EVAL
-    EVAL --> FORMAT[结构化输出]
-    FORMAT --> END
+    START[入口] --> ROUTER{意图路由<br/>规则预检 + LLM}
+    ROUTER -->|policy 政策问答| RAG[rag_node<br/>混合检索 + 生成]
+    RAG --> END
+    ROUTER -->|query 查询| AGENT[agent_node<br/>LLM + 14 工具]
+    ROUTER -->|report 报表| AGENT
+    AGENT -->|tool_calls| TOOL[tool_node<br/>执行工具]
+    TOOL --> AGENT
+    AGENT -->|无工具调用| END
+    ROUTER -->|refund 退款| REFUND[refund_node<br/>抽参 + 状态校验]
+    REFUND -->|大额/超额| CONFIRM{interrupt<br/>人工确认}
+    CONFIRM -->|y| SUBMIT[提交退款申请]
+    CONFIRM -->|n| END
+    REFUND -->|正常| SUBMIT
+    SUBMIT -->|pending 待审批| END
 ```
 
 关键实现点：
 
-- **状态定义**（TypedDict）：`messages`、`intent`、`tool_results`、`pending_refund`、`need_human`、`final_answer`
-- **路由节点**：用结构化输出（JSON）做意图分类，四类：`query / operation / policy / report`
-- **工具节点**：通过 MCP 客户端调用 PHP 业务工具，统一异常捕获（超时/409/404 → 转兜底话术）
-- **interrupt 节点（方案 A / M3 过渡）**：`apply_refund` 成功后 `interrupt({"type": "refund_approve", "refund_no": ...})`，恢复时注入审批结果，继续生成最终答复；生产形态（方案 B）提交后不挂起，改由 RabbitMQ 审批事件驱动（见 7.3.1）
+- **状态定义**（MessagesState 扩展，`graph/state.py`）：`messages`、`user_input`、`intent`、`intent_reason`、`order_no`、`rag_docs`、`tool_result`、`refund_status`、`task_no`、`answer`
+- **路由节点**：规则正则预检（订单号/物流号/SKU/退款/审批信号）→ 未命中再走 LLM 结构化输出，四类：`policy / query / refund / report`
+- **工具节点**：14 个 LangChain `@tool`（`tools/business.py`）经 httpx 直连业务 REST（10s 超时），统一 `BusinessError` 捕获（超时/409/404 → 转兜底话术）；MCP 形态见 `agent/mcp_agent.py`（langchain-mcp-adapters 拉起 PHP Server，验证"工具层可替换"）
+- **退款节点（方案 B）**：LLM 抽取参数 → 状态机校验（拒绝 PENDING_PAYMENT/CANCELLED/REFUNDED 等）→ 大额（全额 >500USD）或超额走 `interrupt` 人工确认 → 提交后立即返回"已提交待审批"（不挂起），审批结果由 RabbitMQ 事件驱动（见 7.3.1）
 - **RAG 节点**：检索 Top-K 片段 → 重排 → 拼上下文 → DeepSeek 生成带引用的回答
 - **兜底**：任何工具空结果/异常 → "未查到，建议换个条件"，绝不编造
 
 ### 7.3 退款审批时序（human-in-the-loop）
+
+> ⚠️ 本节为**方案 A**（M3 过渡形态：interrupt 暂停/恢复等待审批），生产已切换为**方案 B**（§7.3.1 事件驱动，Agent 提交后不挂起）。
 
 ```mermaid
 sequenceDiagram
@@ -343,7 +352,7 @@ thread_id(会话) → checkpoints 表: 每次图节点执行后的完整 state �
 ```
 
 - 多轮对话：同一 `thread_id` 的多次 invoke，消息经 `add_messages` reducer 自动累积；不同 thread 隔离
-- 中断恢复：human-in-the-loop（退款审批 interrupt）依赖 checkpointer 恢复挂起状态（见 7.3）
+- 中断恢复：大额退款确认 interrupt 依赖 checkpointer 恢复挂起状态（见 7.3.1；方案 B 中审批不挂起，结果由事件驱动）
 - 部署注意：setup() 含 `CREATE INDEX CONCURRENTLY`，须用 autocommit 独立连接建表；Agent 访问容器内 PG 用宿主映射端口
 
 **上下文管理（LLM 输入裁剪）**
@@ -469,7 +478,7 @@ docker compose down -v             # 停止并清空数据卷（重新造数）
 - **日志**：业务 API 请求日志（method/path/status/耗时/trace_id）、状态流转日志、审批日志
 - **Agent 追踪**：LangSmith 记录每次运行的节点耗时、工具调用、token 消耗
 - **评测集**（`eval/` 目录）：
-  - `cases.jsonl`：30+ 条用例（含期望结果与负向断言，见 PRD §9.2）
+  - `cases.jsonl`：34 条用例（含期望结果与负向断言，见 PRD §9.2）
   - `run_eval.py`：逐条跑 Agent → 结构化断言（正确/错误/是否编造）→ 输出通过率报告
   - 关键指标：整体通过率 ≥ 90%，负向用例拦截率 100%
 

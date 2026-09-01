@@ -7,11 +7,23 @@
 Thumbs.db
 .DS_Store
 
-# 环境变量/密钥（business-system/.gitignore 已覆盖 .env，这里兜底）
+# 环境变量/密钥（business-system/.gitignore 已覆�?.env，这里兜底）
 .env
 .env.*
 !.env.example
 
-# 日志与临时文件
+# 日志与临时文�?
 *.log
 tmp/
+
+# OpenClaw agent personal files (keep out of git)
+SOUL.md
+IDENTITY.md
+USER.md
+MEMORY.md
+BOOTSTRAP.md
+HEARTBEAT.md
+memory/
+.openclaw/
+
+skills/
