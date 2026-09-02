@@ -24,27 +24,43 @@ logger = logging.getLogger(__name__)
                   └──query/report/refund──→ agent_node ⇄ tool_node(循环) ──→ END
 """
 
-def build_context(state: OverAllState) -> list:
-    """构造 LLM 输入上下文: 保留最近 HISTORY_RECENT_KEEP 条原文,
-    更早的压缩成一条摘要;附上未处理完成的事项(refund_status)。"""
+def build_context(state: OverAllState) -> tuple[list, str]:
+    """构造 LLM 输入上下文。
+
+    返回 (保留的原文消息列表, 附加到 system 的文本摘要/未决事项)。
+    摘要不塞进 messages 中间(独立 SystemMessage 会被 LLM 当回复内容),
+    而是合并进唯一的 system prompt。
+    截断对齐回合边界: 避免把 AI(tool_calls) 和它的 ToolMessage 切散,
+    否则 OpenAI 兼容 API 报 "Messages with role 'tool' must be a response to
+    a preceding message with 'tool_calls'"。
+    """
     messages = state.get("messages", [])
+    extra = []
     if len(messages) > HISTORY_RECENT_KEEP:
         old = messages[:-HISTORY_RECENT_KEEP]
         recent = messages[-HISTORY_RECENT_KEEP:]
+        # 回合边界对齐: recent 首条若是 ToolMessage,补回它在 old 里的 AI(tool_calls)
+        while recent and isinstance(recent[0], ToolMessage) and old:
+            recent = [old[-1]] + recent
+            old = old[:-1]
+        # recent 末尾若是孤立的 AI(tool_calls)(其 ToolMessage 还没产生),丢回 old 做摘要
+        while recent and isinstance(recent[-1], AIMessage) and recent[-1].tool_calls:
+            old = old + [recent[-1]]
+            recent = recent[:-1]
         try:
             summary = get_llm(temperature=0).invoke([
                 SystemMessage(content=HISTORY_SUMMARY_PROMPT.format(
                     history="\n".join(f"{m.type}: {m.content}" for m in old))),
             ]).content
-            ctx = [SystemMessage(content=f"[历史对话摘要] {summary}")] + recent
+            extra.append(f"[历史对话摘要] {summary}")
         except Exception:
-            ctx = [SystemMessage(content=f"[历史对话已省略 {len(old)} 条]")] + recent
+            extra.append(f"[历史对话已省略 {len(old)} 条]")
     else:
-        ctx = messages
+        recent = messages
     # 未处理完成的内容
     if state.get("refund_status"):
-        ctx.append(SystemMessage(content=f"[未处理事项] {state['refund_status']}"))
-    return ctx
+        extra.append(f"[未处理事项] {state['refund_status']}")
+    return recent, "\n".join(extra)
 
 class RefundArgs(BaseModel):
     order_no: str | None = None
@@ -101,15 +117,16 @@ def rag_node(state: OverAllState) -> OverAllState:
                 i += 1
 
     merged = "\n\n".join(merged)
-    system_msg = SystemMessage(content=RAG_ANSWER_PROMPT)
-    messages = build_context(state)
+    base_msgs, extra_text = build_context(state)
+    system_text = RAG_ANSWER_PROMPT + (f"\n\n{extra_text}" if extra_text else "")
+    system_msg = SystemMessage(content=system_text)
     # 方案 A:用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])
-    exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in messages)
+    exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in base_msgs)
     if not exists:
-        messages = messages + [human_msg]
+        base_msgs = base_msgs + [human_msg]
     # 参考资料动态变化,每轮附在最后(不进 state)
-    messages = [system_msg] + messages + [HumanMessage(content=f"【参考资料】\n{merged}")]
+    messages = [system_msg] + base_msgs + [HumanMessage(content=f"【参考资料】\n{merged}")]
     res = _llm.invoke(messages)
     out = [res]
     if not exists:
@@ -123,11 +140,13 @@ def rag_node(state: OverAllState) -> OverAllState:
 def agent_node(state: OverAllState) -> OverAllState:
     # if state['indent'] == 'refund':
 
-    system_msg = SystemMessage(content=AGENT_SYSTEM_PROMPT)
-    messages = build_context(state)
+    base_msgs, extra_text = build_context(state)
+    system_text = AGENT_SYSTEM_PROMPT + (f"\n\n{extra_text}" if extra_text else "")
+    system_msg = SystemMessage(content=system_text)
+    messages = base_msgs
     # 用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])
-    exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in messages)
+    exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in base_msgs)
     if not exists:
         messages = messages + [human_msg]
     messages = [system_msg] + messages
