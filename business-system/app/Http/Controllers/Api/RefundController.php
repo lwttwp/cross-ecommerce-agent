@@ -42,10 +42,10 @@ class RefundController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Refund::query()->with('order:order_no,id');
-        $query->when($request->filled('refund_no'), fn ($q) => $q->where('refund_no', 'ilike', "%{$request->string('refund_no')}%"));
+        $query->when($request->filled('refund_no'), fn ($q) => $q->where('refund_no', 'like', strtoupper($request->string('refund_no')).'%'));
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
         $query->when($request->filled('order_no'), function ($q) use ($request) {
-            $q->whereHas('order', fn ($o) => $o->where('order_no', 'ilike', "%{$request->string('order_no')}%"));
+            $q->whereHas('order', fn ($o) => $o->where('order_no', 'like', strtoupper($request->string('order_no')).'%'));
         });
         $query->orderByDesc('created_at');
         $pageSize = min((int) $request->input('page_size', 20), 100);

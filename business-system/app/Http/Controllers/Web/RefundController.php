@@ -26,10 +26,17 @@ class RefundController extends Controller
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
 
         $query->when($request->filled('keyword'), function ($q) use ($request) {
-            $k = $request->string('keyword');
+            $k = trim($request->string('keyword'));
             $q->where(function ($qq) use ($k) {
-                $qq->where('refund_no', 'ilike', "%{$k}%")
-                    ->orWhereHas('order', fn ($o) => $o->where('order_no', 'ilike', "%{$k}%"));
+                // 单号样式: 右模糊走 text_pattern_ops; 其余包含模糊(trgm)
+                if (preg_match('/^rf\d+/i', $k)) {
+                    $qq->where('refund_no', 'like', strtoupper($k).'%');
+                } elseif (preg_match('/^ce\d+/i', $k)) {
+                    $qq->whereHas('order', fn ($o) => $o->where('order_no', 'like', strtoupper($k).'%'));
+                } else {
+                    $qq->where('refund_no', 'ilike', "%{$k}%")
+                        ->orWhereHas('order', fn ($o) => $o->where('order_no', 'ilike', "%{$k}%"));
+                }
             });
         });
 

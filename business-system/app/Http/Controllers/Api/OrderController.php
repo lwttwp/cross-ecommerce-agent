@@ -18,7 +18,7 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Order::query()->with('customer:id,name,email,country');
-        $query->when($request->filled('order_no'), fn ($q) => $q->where('order_no', 'ilike', "%{$request->string('order_no')}%"));
+        $query->when($request->filled('order_no'), fn ($q) => $q->where('order_no', 'like', strtoupper($request->string('order_no')).'%'));
         $query->when($request->filled('customer_id'), fn ($q) => $q->where('customer_id', (int) $request->input('customer_id')));
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
         $query->when($request->filled('currency'), fn ($q) => $q->where('currency', strtoupper($request->string('currency'))));

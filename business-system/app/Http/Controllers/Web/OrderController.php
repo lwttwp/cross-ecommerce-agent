@@ -28,13 +28,18 @@ class OrderController extends Controller
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
 
         $query->when($request->filled('keyword'), function ($q) use ($request) {
-            $keyword = $request->string('keyword');
-            $q->where(function ($qq) use ($keyword) {
-                $qq->where('order_no', 'ilike', "%{$keyword}%")
-                    ->orWhereHas('customer', fn ($c) => $c
-                        ->where('name', 'ilike', "%{$keyword}%")
-                        ->orWhere('email', 'ilike', "%{$keyword}%"));
-            });
+            $keyword = trim($request->string('keyword'));
+            // 订单号样式(CE 开头): 右模糊走 text_pattern_ops 索引; 否则客户名/邮箱包含模糊(trgm)
+            if (preg_match('/^ce\d+/i', $keyword)) {
+                $q->where('order_no', 'like', strtoupper($keyword).'%');
+            } else {
+                $q->where(function ($qq) use ($keyword) {
+                    $qq->where('order_no', 'ilike', "%{$keyword}%")
+                        ->orWhereHas('customer', fn ($c) => $c
+                            ->where('name', 'ilike', "%{$keyword}%")
+                            ->orWhere('email', 'ilike', "%{$keyword}%"));
+                });
+            }
         });
 
         $query->orderByDesc('created_at');
