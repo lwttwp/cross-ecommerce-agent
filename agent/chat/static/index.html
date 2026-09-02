@@ -388,7 +388,16 @@ function connect() {
   if (!currentSessionId) return;
   if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} }   // 断开旧连接(不触发自动重连)
   ws = new WebSocket(`${WS_PROTO}://${location.host}${BASE_PATH}/ws?session_id=${encodeURIComponent(currentSessionId)}`);
-  ws.onopen = () => { connected = true; reconnectDelay = 1000; setConn("connected", "已连接"); };
+  ws.onopen = () => {
+    connected = true;
+    reconnectDelay = 1000;
+    setConn("connected", "已连接");
+    // 断线重连后复位状态: 清残留加载动画/光标;无待确认卡时解锁输入
+    // (否则 busy 卡 true,发送按钮/输入框锁死,刷新才恢复)
+    hideTyping();
+    if (streaming) endStream();
+    if (!pendingInterrupt) setBusy(false);
+  };
   ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
@@ -438,6 +447,13 @@ function send(obj) {
 function sendChat() {
   const text = input.value.trim();
   if (!text || busy || !connected) return;
+  // 半开连接防护: connected 标记为 true 但 WS 实际不在 OPEN(断线未感知)
+  // 此时 send 会静默失败导致"没响应"——强制重连并提示
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    connect();
+    addError("连接已断开,正在重连,请稍后再发");
+    return;
+  }
   input.value = "";
   input.style.height = "auto";
   addMsg("user", text);
