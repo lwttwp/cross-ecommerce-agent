@@ -21,6 +21,7 @@
                 <option value="{{ $s->value }}" @selected(request('status') === $s->value)>{{ $s->label() }}</option>
             @endforeach
         </select>
+        <input type="text" name="keyword" value="{{ request('keyword') }}" placeholder="退款单号 / 订单号">
         <button type="submit">筛选</button>
         <a class="reset" href="{{ url('/admin/refunds') }}">重置</a>
     </form>

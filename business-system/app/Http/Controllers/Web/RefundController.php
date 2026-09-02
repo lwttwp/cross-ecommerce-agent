@@ -25,6 +25,14 @@ class RefundController extends Controller
 
         $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
 
+        $query->when($request->filled('keyword'), function ($q) use ($request) {
+            $k = $request->string('keyword');
+            $q->where(function ($qq) use ($k) {
+                $qq->where('refund_no', 'ilike', "%{$k}%")
+                    ->orWhereHas('order', fn ($o) => $o->where('order_no', 'ilike', "%{$k}%"));
+            });
+        });
+
         $refunds = $query->paginate(15)->withQueryString();
 
         return view('refunds.index', ['refunds' => $refunds]);
