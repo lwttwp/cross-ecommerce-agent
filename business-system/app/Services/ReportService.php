@@ -183,8 +183,8 @@ class ReportService
     public function exportOrders(array $params): array
     {
         $query = Order::query()->with('customer:id,name,email,country')
-            ->orderByDesc('created_at');
-
+            ->select(['id', 'order_no', 'customer_id', 'status', 'currency',
+                      'exchange_rate', 'total_amount', 'paid_amount', 'created_at']);
         if (! empty($params['status'])) {
             $query->where('status', $params['status']);
         }
@@ -195,32 +195,42 @@ class ReportService
             $query->whereDate('created_at', '<=', $params['date_to']);
         }
 
-        $orders = $query->get();
-
-        $path = $this->writeCsv(
-            'orders_'.now()->format('Ymd_His').'.csv',
-            ['order_no', 'customer_name', 'customer_email', 'customer_country', 'status', 'currency', 'total_amount', 'paid_amount', 'exchange_rate', 'paid_amount_cny', 'created_at'],
-            $orders->map(fn ($o) => [
-                $o->order_no,
-                $o->customer?->name,
-                $o->customer?->email,
-                $o->customer?->country,
-                $o->status->value,
-                $o->currency,
-                (float) $o->total_amount,
-                (float) $o->paid_amount,
-                (float) $o->exchange_rate,
-                round((float) $o->paid_amount * (float) $o->exchange_rate, 2),
-                $o->created_at?->toDateTimeString(),
-            ])->all(),
-        );
+        // 分批流式写 CSV: 100w 级订单不能 get() 全量进内存(会 PHP fatal exit 255)。
+        // chunkById 每次 2000 条,边查边写文件句柄,内存恒定。
+        $filename = 'exports/orders_'.now()->format('Ymd_His').'.csv';
+        Storage::disk('local')->makeDirectory('exports');
+        $handle = fopen(Storage::disk('local')->path($filename), 'w');
+        fputcsv($handle, ['order_no', 'customer_name', 'customer_email', 'customer_country',
+                          'status', 'currency', 'total_amount', 'paid_amount',
+                          'exchange_rate', 'paid_amount_cny', 'created_at']);
+        $rows = 0;
+        $query->orderBy('id')->chunkById(2000, function ($orders) use ($handle, &$rows) {
+            foreach ($orders as $o) {
+                fputcsv($handle, [
+                    $o->order_no,
+                    $o->customer?->name,
+                    $o->customer?->email,
+                    $o->customer?->country,
+                    $o->status->value,
+                    $o->currency,
+                    (float) $o->total_amount,
+                    (float) $o->paid_amount,
+                    (float) $o->exchange_rate,
+                    round((float) $o->paid_amount * (float) $o->exchange_rate, 2),
+                    $o->created_at?->toDateTimeString(),
+                ]);
+                $rows++;
+            }
+        });
+        fclose($handle);
+        @chmod(Storage::disk('local')->path('exports'), 0755);
+        @chmod(Storage::disk('local')->path($filename), 0644);
 
         return [
-            'summary' => [
-                'filename' => basename($path),
-                'rows' => $orders->count(),
-            ],
-            'path' => $path,
+            'summary' => ['filename' => basename($filename), 'rows' => $rows],
+            'path' => $filename,
         ];
     }
+
 }
+
