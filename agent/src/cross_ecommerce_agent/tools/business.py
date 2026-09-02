@@ -70,7 +70,7 @@ def query_orders(order_no: str | None = None,
     """查询订单列表。按条件过滤,支持订单号/状态/关键词模糊搜索。
 
     Args:
-        order_no: 订单号,格式 CE+12位数字,精确匹配
+        order_no: 订单号,格式 CE+12位数字,支持模糊匹配(可输部分单号)
         status: 订单状态枚举: PENDING_PAYMENT(待支付)/PAID(已支付)/
                 SHIPPED(已发货)/COMPLETED(已完成)/CANCELLED(已取消)/
                 REFUNDING(退款中)/REFUNDED(已退款)
@@ -297,7 +297,7 @@ def query_refunds(refund_no: str | None = None,
     """查询退款单列表。
 
     Args:
-        refund_no: 退款单号,精确匹配
+        refund_no: 退款单号,支持模糊匹配(可输部分单号)
         status: 退款状态(小写): pending(待审批)/approved(已通过)/rejected(已驳回)
         order_no: 按订单号过滤,格式 CE+12位数字
         page: 页码,默认 1; page_size: 每页条数,默认 20,最大 100
