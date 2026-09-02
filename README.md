@@ -25,7 +25,7 @@
 
 三层解耦:Agent 只负责对话与编排,不碰数据库;业务系统不感知 AI,所有写操作走业务校验;退款等资金操作强制 human-in-the-loop。聊天界面为独立服务(容器化),经 nginx `/chat` 统一入口,审批事件经 RabbitMQ 实时回推对应会话。
 
-详细设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),需求与验收见 [docs/PRD.md](docs/PRD.md)。
+详细设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),需求与验收见 [docs/PRD.md](docs/PRD.md),版本记录见 [docs/CHANGELOG.md](docs/CHANGELOG.md),生产部署见 [deploy/server-setup.md](deploy/server-setup.md)。
 
 ## 技术栈
 
@@ -101,6 +101,7 @@ cd eval
 | M3 Agent 集成(路由/工具/interrupt/RAG/记忆) | ✅      |
 | M4 工程化收尾(评测集/部署脚本/README/演示)    | ✅      |
 | M5 聊天界面 + 容器化(多会话/流式/审批推送/反代)  | ✅      |
+| v1.1.0 生产部署 + 百万数据优化(腾讯云 4G/索引/导出修复) | ✅      |
 
 ## 目录结构
 
