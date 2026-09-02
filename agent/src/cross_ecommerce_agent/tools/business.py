@@ -361,20 +361,32 @@ def get_task(task_no: str) -> dict:
 
 @tool("download_task", parse_docstring=True)
 def download_task(task_no: str) -> dict:
-    """下载/读取任务产物内容(CSV 文本)。任务 success 后才能下载。
-
+    """获取报表/导出任务的下载链接(CSV)。任务须 success 且有产物。
     Args:
         task_no: 任务编号
 
     Returns:
-        {"content": "CSV 文本内容"} 或 {"error": ...}
+        {download_url, ...} 或 {error: 原因}。URL 可直接复制到浏览器下载。
     """
     try:
-        text = client.get_text(f'/tasks/{task_no}/download', params={'inline': 1})
-        return {"content": text}
-    except httpx.HTTPError as e:
-        return {"error": f"下载任务结果失败: {e}"}
-
+        info = client.get(f'/tasks/{task_no}')
+    except (httpx.HTTPError, BusinessError) as e:
+        return {"error": f"查询任务失败: {e}"}
+    if info.get('status') != 'success' or not info.get('result_path'):
+        return {
+            "task_no": task_no,
+            "status": info.get('status', '?'),
+            "status_label": info.get('status_label', ''),
+            "hint": "任务未完成或无产物,暂不能下载",
+        }
+    # 下载链接: 对外入口 + query token(浏览器无法带 Authorization 头)
+    url = f"{config.PUBLIC_API_BASE}/tasks/{task_no}/download?token={config.BIZ_API_TOKEN_AGENT}"
+    return {
+        "task_no": task_no,
+        "status": "success",
+        "download_url": url,
+        "hint": "下载链接(复制到浏览器或直接点击): " + url,
+    }
 
 if __name__ == '__main__':
     import json

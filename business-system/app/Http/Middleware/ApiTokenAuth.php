@@ -16,6 +16,11 @@ class ApiTokenAuth
     public function handle(Request $request, Closure $next, string $role = 'agent'): Response
     {
         $token = $request->bearerToken();
+        // 下载链接场景: 浏览器无法带 Authorization 头,允许 GET 用 ?token= 查询参数
+        // (仅 GET;写操作仍强制 header,避免 token 经 URL 用于状态变更)
+        if ($token === null && $request->isMethod('GET')) {
+            $token = $request->query('token');
+        }
         $tokens = (array) config('api.tokens', []);
 
         if ($token === null || ! isset($tokens[$role]) || $tokens[$role] === '' || ! hash_equals($tokens[$role], $token)) {
