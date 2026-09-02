@@ -1,0 +1,16 @@
+# 构建上下文排除: 本地环境/数据/日志不进镜像
+.venv
+__pycache__
+*.pyc
+*.pyo
+data/
+logs/
+notifications/
+chat/chat_sessions.json
+.env
+.gitignore
+md5.txt
+*.log
+tests/
+scripts/
+.idea/
