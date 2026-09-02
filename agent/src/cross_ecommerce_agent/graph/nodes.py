@@ -62,6 +62,18 @@ def build_context(state: OverAllState) -> tuple[list, str]:
         extra.append(f"[未处理事项] {state['refund_status']}")
     return recent, "\n".join(extra)
 
+def _last_user_is(messages, text: str) -> bool:
+    """历史中最后一条用户消息是否就是当前输入。
+    原 exists 逻辑查全部历史,用户重复提问(内容相同)会被误判为已发送,
+    导致本轮问题不进 LLM 上下文(答非所问/续写)。只查最后一条用户消息:
+    同轮工具循环内(上轮 out 已写入 human)不重复;跨轮重复提问正常追加。
+    """
+    for m in reversed(messages):
+        if isinstance(m, HumanMessage):
+            return m.content == text
+    return False
+
+
 class RefundArgs(BaseModel):
     order_no: str | None = None
     reason: str | None = None
@@ -122,7 +134,7 @@ def rag_node(state: OverAllState) -> OverAllState:
     system_msg = SystemMessage(content=system_text)
     # 方案 A:用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])
-    exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in base_msgs)
+    exists = _last_user_is(base_msgs, state['user_input'])
     if not exists:
         base_msgs = base_msgs + [human_msg]
     # 参考资料动态变化,每轮附在最后(不进 state)
@@ -146,7 +158,7 @@ def agent_node(state: OverAllState) -> OverAllState:
     messages = base_msgs
     # 用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])
-    exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in base_msgs)
+    exists = _last_user_is(base_msgs, state['user_input'])
     if not exists:
         messages = messages + [human_msg]
     messages = [system_msg] + messages
