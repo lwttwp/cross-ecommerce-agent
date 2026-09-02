@@ -361,12 +361,15 @@ def get_task(task_no: str) -> dict:
 
 @tool("download_task", parse_docstring=True)
 def download_task(task_no: str) -> dict:
-    """获取报表/导出任务的下载链接(CSV)。任务须 success 且有产物。
+    """获取报表或导出任务的下载链接。
+
+    任务须 success 且有产物才能下载。
+
     Args:
         task_no: 任务编号
 
     Returns:
-        {download_url, ...} 或 {error: 原因}。URL 可直接复制到浏览器下载。
+        dict: 下载信息,含 download_url;任务未完成或无产物时返回状态与提示
     """
     try:
         info = client.get(f'/tasks/{task_no}')
