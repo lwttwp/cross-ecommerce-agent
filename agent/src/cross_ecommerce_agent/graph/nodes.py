@@ -5,7 +5,8 @@ from cross_ecommerce_agent.graph.router import IntentRouter,route_by_intent
 from cross_ecommerce_agent.rag.retriever import VectorStoreService,HybridRetriever
 from cross_ecommerce_agent.rag.query_rewrite import QueryRewriter,need_multi
 from cross_ecommerce_agent.config import RAG_ANSWER_PROMPT,\
-    AGENT_SYSTEM_PROMPT,EXTRACT_REFUND_PROMPT,REFUND_CONFIRM_THRESHOLD
+    AGENT_SYSTEM_PROMPT,EXTRACT_REFUND_PROMPT,REFUND_CONFIRM_THRESHOLD,HISTORY_RECENT_KEEP,\
+    HISTORY_SUMMARY_PROMPT
 from cross_ecommerce_agent.llm.client import get_llm
 from cross_ecommerce_agent.tools.business import query_orders,get_order,create_order,\
     update_order_address,cancel_order,get_tracking,query_products,get_product,\
@@ -22,6 +23,28 @@ logger = logging.getLogger(__name__)
     START → intent_router ──policy──→ rag_node ──→ END
                   └──query/report/refund──→ agent_node ⇄ tool_node(循环) ──→ END
 """
+
+def build_context(state: OverAllState) -> list:
+    """构造 LLM 输入上下文: 保留最近 HISTORY_RECENT_KEEP 条原文,
+    更早的压缩成一条摘要;附上未处理完成的事项(refund_status)。"""
+    messages = state.get("messages", [])
+    if len(messages) > HISTORY_RECENT_KEEP:
+        old = messages[:-HISTORY_RECENT_KEEP]
+        recent = messages[-HISTORY_RECENT_KEEP:]
+        try:
+            summary = get_llm(temperature=0).invoke([
+                SystemMessage(content=HISTORY_SUMMARY_PROMPT.format(
+                    history="\n".join(f"{m.type}: {m.content}" for m in old))),
+            ]).content
+            ctx = [SystemMessage(content=f"[历史对话摘要] {summary}")] + recent
+        except Exception:
+            ctx = [SystemMessage(content=f"[历史对话已省略 {len(old)} 条]")] + recent
+    else:
+        ctx = messages
+    # 未处理完成的内容
+    if state.get("refund_status"):
+        ctx.append(SystemMessage(content=f"[未处理事项] {state['refund_status']}"))
+    return ctx
 
 class RefundArgs(BaseModel):
     order_no: str | None = None
@@ -79,7 +102,7 @@ def rag_node(state: OverAllState) -> OverAllState:
 
     merged = "\n\n".join(merged)
     system_msg = SystemMessage(content=RAG_ANSWER_PROMPT)
-    messages = state.get('messages', [])
+    messages = build_context(state)
     # 方案 A:用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])
     exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in messages)
@@ -101,7 +124,7 @@ def agent_node(state: OverAllState) -> OverAllState:
     # if state['indent'] == 'refund':
 
     system_msg = SystemMessage(content=AGENT_SYSTEM_PROMPT)
-    messages = state.get('messages', [])
+    messages = build_context(state)
     # 用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])
     exists = any(isinstance(m, HumanMessage) and m.content == state['user_input'] for m in messages)

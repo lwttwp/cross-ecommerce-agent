@@ -95,3 +95,12 @@ EXTRACT_REFUND_PROMPT = """从客服消息中提取退款申请信息,输出 JSO
 CHECKPOINT_DB_DSN = os.getenv('CHECKPOINT_DB_DSN', '')
 
 REFUND_CONFIRM_THRESHOLD = 500   # 全额退款超过此金额(USD)需确认
+
+# ---- 上下文裁剪（聊天界面多会话用）----
+HISTORY_RECENT_KEEP = 10   # LLM 上下文只保留最近 10 条消息原文
+HISTORY_SUMMARY_PROMPT = """你是对话摘要器。把以下历史客服对话压缩成 50 字以内的摘要。
+必须保留: 订单号、金额、币种、用户诉求、未决事项(如"退款单 RFxxx 已提交待审批")。
+只输出摘要,不要其他内容。
+
+历史对话:
+{history}"""

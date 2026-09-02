@@ -6,12 +6,13 @@ venv/
 
 # 环境变量（含密钥）
 .env
+.env.*
 
 # RAG 入库增量标记（运行时生成）
 md5.txt
 src/cross_ecommerce_agent/rag/test.txt
 
-# 方案 B 运行时数据（退款会话映射 / 通知投递）
+# 方案 B 运行时数据（退款会话映射/通知投递）
 refund_thread_map.json
 notifications/
 
@@ -23,3 +24,6 @@ data/
 *.egg-info/
 dist/
 build/
+
+# 聊天会话数据（运行时生成）
+chat/chat_sessions.json
