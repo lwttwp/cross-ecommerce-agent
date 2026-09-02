@@ -58,6 +58,11 @@ class HybridRetriever:
             Document(page_content=content, metadata=meta or {}, id=doc_id)
             for doc_id, content, meta in zip(data["ids"], data["documents"], data["metadatas"])
         ]
+        if not self._corpus:
+            # 空库(全新环境未入库):不构建 BM25,避免 rank_bm25 除零;入库后 rebuild 即可
+            self._bm25 = None
+            print("[retriever] 向量库为空,BM25 索引暂不构建(请先运行 rag/ingest.py 入库)")
+            return
         self._bm25 = BM25Okapi([_tokenize(d.page_content) for d in self._corpus])
 
     def invoke(self, query: str, k: int | None = None) -> list[Document]:
@@ -69,10 +74,12 @@ class HybridRetriever:
         # 向量路:similarity_search_with_score 返回 [(doc, score)],按序即排名
         vec_results = self._store.similarity_search_with_score(query, k=self._vector_k)
 
-        # BM25 路:按分数取 top bm25_k
-        bm25_scores = self._bm25.get_scores(_tokenize(query))
-        bm25_ranked = sorted(range(len(bm25_scores)),
-                             key=lambda i: bm25_scores[i], reverse=True)[:self._bm25_k]
+        # BM25 路:按分数取 top bm25_k(向量库为空时跳过,仅走向量路)
+        bm25_ranked: list[int] = []
+        if self._bm25 is not None:
+            bm25_scores = self._bm25.get_scores(_tokenize(query))
+            bm25_ranked = sorted(range(len(bm25_scores)),
+                                 key=lambda i: bm25_scores[i], reverse=True)[:self._bm25_k]
 
         # RRF 融合:score = sum(1 / (rrf_k + rank)),rank 从 1 起
         fused: dict[str, float] = {}
