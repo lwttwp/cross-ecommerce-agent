@@ -168,6 +168,34 @@ async def api_session_messages(session_id: str):
     return {"code": 0, "data": load_history(session_id)}
 
 
+@app.delete("/api/sessions/{session_id}")
+async def api_delete_session(session_id: str):
+    """删除会话: sessions.json 记录 + PG checkpointer 历史 + 通知文件。"""
+    thread_id = manager.delete_session(session_id)
+    if not thread_id:
+        return {"code": 404, "message": "会话不存在", "data": None}
+    # 清 PG checkpointer(该 thread 的完整对话历史)
+    try:
+        import psycopg
+        from cross_ecommerce_agent.config import CHECKPOINT_DB_DSN
+        with psycopg.connect(CHECKPOINT_DB_DSN, autocommit=True) as conn:
+            for tbl in ("checkpoint_blobs", "checkpoint_writes", "checkpoints"):
+                try:
+                    conn.execute(f"DELETE FROM {tbl} WHERE thread_id = %s", (thread_id,))
+                except Exception:
+                    pass   # 旧版无 blobs 表等,忽略
+    except Exception as e:
+        return {"code": 500, "message": f"清理会话历史失败: {e}", "data": None}
+    # 清审批通知文件(如存在)
+    try:
+        nf = os.path.join(BASE_DIR, "notifications", f"{thread_id}.md")
+        if os.path.exists(nf):
+            os.remove(nf)
+    except OSError:
+        pass
+    return {"code": 0, "message": "会话已删除", "data": {"session_id": session_id}}
+
+
 @app.websocket("/ws")
 async def ws_chat(websocket: WebSocket) -> None:
     await websocket.accept()

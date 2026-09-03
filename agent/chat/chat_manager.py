@@ -80,6 +80,14 @@ class ChatManager:
             info = self._sessions.get(session_id)
             return info["thread_id"] if info else None
 
+    def delete_session(self, session_id: str) -> str | None:
+        """删除会话记录,返回 thread_id(调用方据此清理 checkpointer 历史)。"""
+        with _LOCK:
+            info = self._sessions.pop(session_id, None)
+            if info:
+                self._save()
+            return info["thread_id"] if info else None
+
     def touch(self, session_id: str, title: str | None = None) -> None:
         """更新最后活跃时间;标题还是默认值时用首条消息自动命名。"""
         with _LOCK:

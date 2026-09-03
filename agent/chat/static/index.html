@@ -138,15 +138,24 @@
   #sessionList { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
   .session-item {
     padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 2px;
-    display: flex; flex-direction: column; gap: 3px;
+    display: flex; flex-direction: column; gap: 3px; position: relative;
   }
   .session-item:hover { background: #f0f0f0; }
   .session-item.active { background: #dbeafe; }
   .session-item .s-title {
     font-size: 13px; color: var(--text); font-weight: 500;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding-right: 16px;
   }
   .session-item .s-time { font-size: 11px; color: var(--muted); }
+  .session-item .s-del {
+    position: absolute; top: 6px; right: 8px;
+    width: 18px; height: 18px; line-height: 16px; text-align: center;
+    border-radius: 50%; font-size: 12px; color: var(--muted);
+    opacity: 0; transition: all .15s;
+  }
+  .session-item:hover .s-del { opacity: 1; }
+  .session-item .s-del:hover { background: #fecaca; color: var(--error); }
   .sidebar .empty { font-size: 12px; color: var(--muted); text-align: center; padding: 30px 10px; }
 </style>
 </head>
@@ -358,12 +367,34 @@ async function refreshSessions() {
   sessions.forEach((s) => {
     const item = document.createElement("div");
     item.className = "session-item" + (s.session_id === currentSessionId ? " active" : "");
-    item.innerHTML = `<div class="s-title"></div><div class="s-time"></div>`;
+    item.innerHTML = `<div class="s-title"></div><div class="s-time"></div><div class="s-del" title="删除会话">×</div>`;
     item.querySelector(".s-title").textContent = s.title || "新会话";
     item.querySelector(".s-time").textContent = fmtTime(s.last_active);
     item.onclick = () => switchSession(s.session_id);
+    item.querySelector(".s-del").onclick = (e) => {
+      e.stopPropagation();
+      deleteSession(s.session_id);
+    };
     sessionList.appendChild(item);
   });
+}
+async function deleteSession(sid) {
+  if (!confirm("删除该会话及全部聊天历史？")) return;
+  try {
+    await api("/api/sessions/" + sid, { method: "DELETE" });
+  } catch (e) {
+    addError("删除失败: " + e.message);
+    return;
+  }
+  if (sid === currentSessionId) {
+    // 当前会话被删: 断开旧 WS,切到剩余第一个或新建
+    if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} }
+    const rest = sessions.filter((s) => s.session_id !== sid);
+    if (rest.length) { await switchSession(rest[0].session_id); }
+    else { await createSession(); }
+  } else {
+    await refreshSessions();
+  }
 }
 async function createSession() {
   const s = await api("/api/sessions", { method: "POST" });
