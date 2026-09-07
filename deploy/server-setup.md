@@ -84,7 +84,7 @@ curl -s http://127.0.0.1:8000/api/v1/health   # {"code":0}
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000/chat/   # 200
 ```
 
-入口：业务后台 `http://IP:8000/`（admin@example.com / admin123）、聊天 `http://IP:8000/chat/`。
+入口：业务后台 `http://IP:8000/`（admin@example.com，初始密码见 database/seeders/UserSeeder.php，生产请立即修改）、聊天 `http://IP:8000/chat/`。
 
 ## 6. RAG 入库（全新环境向量库为空,chat 会崩）
 
