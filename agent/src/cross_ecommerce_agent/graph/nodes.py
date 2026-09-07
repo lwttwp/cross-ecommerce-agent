@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 import json
+import re
 from cross_ecommerce_agent.graph.state import OverAllState
 from cross_ecommerce_agent.graph.router import IntentRouter,route_by_intent
 from cross_ecommerce_agent.rag.retriever import VectorStoreService,HybridRetriever
@@ -176,16 +177,46 @@ def latest_refund(refunds):
     items = refunds.get("items", [])
     return max(items, key=lambda r: r["created_at"]) if items else {}
 
+
+def recent_context_text(state) -> str:
+    """最近几轮对话文本(供参数抽取做指代消解,如"这个订单"指上文单号)。"""
+    parts = []
+    for m in state.get("messages", [])[-6:]:
+        c = getattr(m, "content", "")
+        if isinstance(c, list):
+            c = " ".join(x.get("text", "") for x in c if isinstance(x, dict))
+        if c and not getattr(m, "tool_calls", None):
+            who = "用户" if m.type == "human" else ("助手" if m.type == "ai" else m.type)
+            parts.append(f"{who}: {str(c)[:200]}")
+    return "\n".join(parts[-4:])
+
+
+def find_recent_order_no(messages) -> str | None:
+    """历史最近提到的订单号(指代兑底)。"""
+    for m in reversed(messages or []):
+        c = getattr(m, "content", "")
+        if isinstance(c, list):
+            c = " ".join(x.get("text", "") for x in c if isinstance(x, dict))
+        if isinstance(c, str):
+            hits = re.findall(r"CE\d{12}", c)
+            if hits:
+                return hits[-1]
+    return None
+
+
 def refund_node(state: OverAllState, config: RunnableConfig) -> OverAllState:
     order_no = state.get('order_no', '')
-    # llm抽取参数
-    args = extract_refund_args(state["user_input"])
+    # llm抽取参数(带最近对话上下文,支持"这个订单"指代)
+    args = extract_refund_args(state["user_input"], context=recent_context_text(state))
     order_no = state.get("order_no") or args.order_no  # 优先意图分类的,兜底抽取的
     reason = args.reason
     amount = args.amount
     if not order_no:
+        # 指代兜底: 当前句无单号且是"这/该单"类指代,从历史取最近单号
+        order_no = find_recent_order_no(state.get("messages", []))
+    if not order_no:
         return {
-            "answer":"请提供订单号,例如:订单 CE202608241024,原因是商品质量问题"
+            "answer": "请提供订单号,例如:订单 CE202608241024,原因是商品质量问题"
         }
     # 查询订单
     order = get_order.invoke({
@@ -196,7 +227,7 @@ def refund_node(state: OverAllState, config: RunnableConfig) -> OverAllState:
     if order["status"] in ("PENDING_PAYMENT", "CANCELLED", "REFUNDED", "REFUNDING"):
         return {"answer": f"订单当前状态({order['status_label']})不支持申请退款"}
     if not reason:
-        return {"answer": "请提供退款原因,例如:商品质量问题"}
+        return {"answer": f"请提供退款原因,例如:订单 {order_no} 商品质量问题"}
     if needs_confirm(order, args):
         confirm = interrupt({
             "type": "refund_confirm",  # 用 type 区分挂起点
@@ -224,11 +255,12 @@ def refund_node(state: OverAllState, config: RunnableConfig) -> OverAllState:
         logger.info(f"退款映射已记录: {refund_no} -> {thread_id}")
     return {"answer": f"退款申请已提交({refund_no}),等待管理员审批,审批结果会第一时间通知您"}
 
-def extract_refund_args(text):
+def extract_refund_args(text, context: str = ""):
     """
-    提取退款相关参数
+    提取退款相关参数。context 为最近对话文本,用于指代消解
+    (如用户说"这个订单申请退款",需识别上文提到的订单号)。
     """
-    prompt = EXTRACT_REFUND_PROMPT.format(text=text)
+    prompt = EXTRACT_REFUND_PROMPT.format(text=text, context=context or "(无)")
     llm = get_llm(temperature=0).with_structured_output(RefundArgs)  # 使用默认的LLM实例
     res = llm.invoke([HumanMessage(content=prompt)])
     logger.info(f"提取退款参数: {res}")
