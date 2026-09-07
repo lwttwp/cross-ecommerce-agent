@@ -4,6 +4,14 @@
 
 **核心亮点**:LangGraph 多代理编排 + PHP 业务系统(真实数据模型/状态机/审批流)两层解耦,覆盖订单查询、物流跟踪、售后退款(人工审批)、政策问答(RAG)、数据报表(异步任务)五类能力;内置 Web 聊天界面,多会话、流式输出、退款确认、审批结果实时推送。
 
+## 界面预览
+
+<p align="center">
+  <img src="docs/screenshots/chat-demo-1.png" width="48%" alt="订单查询与物流跟踪"/>
+  <img src="docs/screenshots/chat-demo-2.png" width="48%" alt="多轮对话与售后引导"/>
+</p>
+<p align="center"><em>AI 聊天界面：订单查询 · 物流轨迹 · 多轮对话 · 售后引导</em></p>
+
 ## 架构总览
 
 ```
