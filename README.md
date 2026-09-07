@@ -7,10 +7,9 @@
 ## 界面预览
 
 <p align="center">
-  <img src="docs/screenshots/chat-demo-1.png" width="48%" alt="订单查询与物流跟踪"/>
-  <img src="docs/screenshots/chat-demo-2.png" width="48%" alt="多轮对话与售后引导"/>
+  <img src="docs/screenshots/chat-demo.png" width="82%" alt="AI 聊天界面演示"/>
 </p>
-<p align="center"><em>AI 聊天界面：订单查询 · 物流轨迹 · 多轮对话 · 售后引导</em></p>
+<p align="center"><em>AI 聊天界面：订单查询 · 物流跟踪 · 退款政策引导</em></p>
 
 ## 架构总览
 
