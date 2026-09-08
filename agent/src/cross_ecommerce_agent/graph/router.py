@@ -17,6 +17,9 @@ def rule_precheck(text: str) -> str | None:
     if REPORT_RE.search(text):
         return 'report'
     if REFUND_RE.search(text):
+        # 咨询式疑问(能/可以/吗/怎么/是否/流程)不是申请动作——交 LLM 归 policy
+        if re.search(r'能|可以|吗|怎么|是否|能不能|行不行|流程|需要什么', text):
+            return None
         return 'refund'
     if (ORDER_NO_RE.search(text) and QUERY_VERB_RE.search(text)) or TRACKING_RE.search(text) or SKU_RE.search(text) or APPROVE_RE.search(text):
         return 'query'
