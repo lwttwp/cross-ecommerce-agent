@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph, START, END
 from cross_ecommerce_agent.graph.nodes import intent_router,rag_node,agent_node,\
-    tools,tool_router,refund_node
+    tools,tool_router,refund_node,supervisor_node
+from cross_ecommerce_agent.graph.agents import agent_tools
 from cross_ecommerce_agent.graph.state import OverAllState
 from cross_ecommerce_agent.graph.router import route_by_intent
 from langgraph.prebuilt import ToolNode
@@ -27,10 +28,12 @@ builder = StateGraph(state_schema=OverAllState)
 
 builder.add_node("intent_router", intent_router)
 builder.add_node("rag_node", rag_node)
-builder.add_node("agent_node", agent_node)
+builder.add_node("agent_node", agent_node)      # 旧单 Agent(保留,未使用)
 builder.add_node("refund_node", refund_node)
-builder.add_node("tool_node", ToolNode(tools=tools))
-
+builder.add_node("tool_node", ToolNode(tools=tools))  # 旧工具节点(保留,未使用)
+# 多 Agent: supervisor 主管 + 专家工具执行节点
+builder.add_node("supervisor", supervisor_node)
+builder.add_node("expert_tools", ToolNode(agent_tools))
 
 builder.add_edge(START, "intent_router")
 builder.add_conditional_edges(
@@ -38,18 +41,23 @@ builder.add_conditional_edges(
     route_by_intent,
     path_map={
         "policy": "rag_node",
-        "query": "agent_node",
+        "query": "supervisor",
         "refund": "refund_node",
-        "report": "agent_node",
+        "report": "supervisor",
     }
 )
+# supervisor: 有 tool_calls(选中专家) -> expert_tools 执行; 否则直接回答 -> END
 builder.add_conditional_edges(
-    "agent_node",
-            tool_router
-    )
-builder.add_edge("tool_node", "agent_node")
+    "supervisor",
+    tool_router,
+    path_map={"tool_node": "expert_tools", END: END},
+)
+builder.add_edge("expert_tools", "supervisor")  # 专家执行完回报主管
 builder.add_edge("rag_node", END)
 builder.add_edge("refund_node", END)
+# 旧 agent 回路保留(未接线,便于回滚)
+builder.add_conditional_edges("agent_node", tool_router)
+builder.add_edge("tool_node", "agent_node")
 
 graph = builder.compile(checkpointer=make_checkpointer())
 

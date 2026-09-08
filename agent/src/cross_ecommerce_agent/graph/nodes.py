@@ -12,6 +12,7 @@ from cross_ecommerce_agent.llm.client import get_llm
 from cross_ecommerce_agent.tools.business import query_orders,get_order,create_order,\
     update_order_address,cancel_order,get_tracking,query_products,get_product,\
     get_customer,apply_refund,query_refunds,create_task,get_task,download_task
+from cross_ecommerce_agent.graph.agents import agent_tools  # 多 Agent 专家工具(supervisor 路由用)
 from langchain_core.messages import HumanMessage,ToolMessage,SystemMessage,AIMessage
 from langchain_core.runnables import RunnableConfig
 from cross_ecommerce_agent.refund_mapper import record as map_record
@@ -97,6 +98,8 @@ tools = [query_orders,get_order,create_order,
     update_order_address,cancel_order,get_tracking,query_products,get_product,
     get_customer,apply_refund,query_refunds,create_task,get_task,download_task]
 _llm_with_tools = _llm.bind_tools(tools = tools)
+# Supervisor: 绑专家工具(每个专家=一个工具),负责路由派发
+_supervisor_llm = get_llm().bind_tools(agent_tools)
 # 意图识别节点
 def intent_router(state: OverAllState) -> OverAllState:
 
@@ -172,6 +175,44 @@ def agent_node(state: OverAllState) -> OverAllState:
         "answer" : res.content,
         "messages" : out,
     }
+
+# ==================== Supervisor(多 Agent 路由主管) ====================
+SUPERVISOR_PROMPT_TMPL = """你是跨境电商平台的客服主管,负责把用户请求派给最合适的专家处理。
+
+专家列表:
+- order_agent: 订单/物流/商品/客户查询,改地址/取消/创建订单(写操作需先向用户确认)
+- aftersale_agent: 退款单状态/售后进度查询
+- report_agent: 报表/导出任务创建、查询、下载
+
+路由规则:
+1. 先判断用户意图,调对应专家工具(query 参数传完整请求,把订单号等关键信息一并写入)
+2. 每轮最多调一个专家;专家返回后若用户还有追问(如先查订单又问售后),可再调其他专家
+3. 所有问题解决后,直接给用户最终中文回答(不再调用工具)
+4. 发起退款申请、审批退款等人工流程不在专家能力内,明确告知用户对应流程
+5. 禁止编造,订单号/金额/状态等以工具返回为准
+
+{extra}"""
+
+
+def supervisor_node(state: OverAllState) -> OverAllState:
+    """主管节点: 分析请求 -> 选专家(tool_calls)或直接回答。"""
+    base_msgs, extra_text = build_context(state)
+    system_text = SUPERVISOR_PROMPT_TMPL.format(extra=extra_text)
+    system_msg = SystemMessage(content=system_text)
+    messages = base_msgs
+    human_msg = HumanMessage(content=state['user_input'])
+    exists = _last_user_is(base_msgs, state['user_input'])
+    if not exists:
+        messages = messages + [human_msg]
+    messages = [system_msg] + messages
+    res = _supervisor_llm.invoke(messages)
+    calls = [c.get('name') for c in (res.tool_calls or [])]
+    logger.info(f"supervisor 决策: {res.content!r} | 派发: {calls}")
+    out = [res]
+    if not exists:
+        out = [human_msg, res]
+    return {"answer": res.content, "messages": out}
+
 
 def latest_refund(refunds):
     items = refunds.get("items", [])
