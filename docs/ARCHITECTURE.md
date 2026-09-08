@@ -85,7 +85,7 @@ cross-ecommerce-agent/
 │   └── docker/php/
 ├── agent/                      # LangGraph 应用
 │   └── src/cross_ecommerce_agent/
-│       ├── graph/              # 状态、节点、意图路由、图构建（build.py）
+│       ├── graph/              # 状态、节点、意图路由、supervisor 多 Agent（agents.py）、图构建
 │       ├── llm/                # DeepSeek 客户端
 │       ├── tools/              # 14 个工具定义（@tool + httpx REST 客户端）
 │       ├── rag/                # 文档分块、embedding、混合检索、查询重写
@@ -240,34 +240,42 @@ erDiagram
 
 > 规则：**写操作工具（apply_refund / update_order_address / cancel_order / create_order / create_task）在 Agent 侧执行前必须向用户复述确认**；退款最终由 admin 审批兜底。
 
-### 7.2 LangGraph 图设计
+### 7.2 LangGraph 图设计（多 Agent Supervisor 架构，2026-09-08）
 
 ```mermaid
 flowchart TD
     START[入口] --> ROUTER{意图路由<br/>规则预检 + LLM}
     ROUTER -->|policy 政策问答| RAG[rag_node<br/>混合检索 + 生成]
     RAG --> END
-    ROUTER -->|query 查询| AGENT[agent_node<br/>LLM + 14 工具]
-    ROUTER -->|report 报表| AGENT
-    AGENT -->|tool_calls| TOOL[tool_node<br/>执行工具]
-    TOOL --> AGENT
-    AGENT -->|无工具调用| END
-    ROUTER -->|refund 退款| REFUND[refund_node<br/>抽参 + 状态校验]
+    ROUTER -->|refund 申请退款| REFUND[refund_node<br/>抽参 + 状态校验]
     REFUND -->|大额/超额| CONFIRM{interrupt<br/>人工确认}
     CONFIRM -->|y| SUBMIT[提交退款申请]
     CONFIRM -->|n| END
     REFUND -->|正常| SUBMIT
     SUBMIT -->|pending 待审批| END
+    ROUTER -->|query/report/混合| SUP[supervisor<br/>主管 LLM 绑专家工具]
+    SUP -->|选中专家| EXPT[expert_tools<br/>执行专家]
+    EXPT --> SUP
+    SUP -->|无工具调用| END
+    OA[order_agent<br/>订单/物流/商品/客户 8 工具]
+    AA[aftersale_agent<br/>退款单查询]
+    RA[report_agent<br/>报表/导出/下载]
+    EXPT -.调用.-> OA
+    EXPT -.调用.-> AA
+    EXPT -.调用.-> RA
 ```
 
 关键实现点：
 
-- **状态定义**（MessagesState 扩展，`graph/state.py`）：`messages`、`user_input`、`intent`、`intent_reason`、`order_no`、`rag_docs`、`tool_result`、`refund_status`、`task_no`、`answer`
-- **路由节点**：规则正则预检（订单号/物流号/SKU/退款/审批信号）→ 未命中再走 LLM 结构化输出，四类：`policy / query / refund / report`
-- **工具节点**：14 个 LangChain `@tool`（`tools/business.py`）经 httpx 直连业务 REST（10s 超时），统一 `BusinessError` 捕获（超时/409/404 → 转兜底话术）；MCP 形态见 `agent/mcp_agent.py`（langchain-mcp-adapters 拉起 PHP Server，验证"工具层可替换"）
-- **退款节点（方案 B）**：LLM 抽取参数 → 状态机校验（拒绝 PENDING_PAYMENT/CANCELLED/REFUNDED 等）→ 大额（全额 >500USD）或超额走 `interrupt` 人工确认 → 提交后立即返回"已提交待审批"（不挂起），审批结果由 RabbitMQ 事件驱动（见 7.3.1）
+- **多 Agent 拆分**（`graph/agents.py`）：三个 ReAct 专家子 Agent——`order_agent`（订单/物流/商品/客户，8 工具）、`aftersale_agent`（退款单查询）、`report_agent`（报表/导出/下载，3 工具）。每个专家独立 system prompt + 小工具集（替代 14 工具全绑一个 LLM，工具选择更准）；专家无 checkpointer，多轮记忆由主管层维护
+- **Supervisor 主管**（`supervisor_node`）：主管 LLM bind 专家工具（agents-as-tools 模式），**动态多轮派发**——支持混合意图一次调多个专家（如"查物流 + 生成报表"并行派 `order_agent` + `report_agent`，各自执行后主管汇总）；问题解决后直接回答结束
+- **路由节点**：规则正则预检（订单号/物流号/SKU/退款动作/报表/审批信号；**退款咨询疑问句**如"能申请退款吗"不锁 refund，交 LLM 归 policy）→ 未命中走 LLM 结构化输出，四类 `policy / query / refund / report`；query/report/混合 → supervisor
+- **工具层**：14 个 LangChain `@tool`（`tools/business.py`）httpx 直连业务 REST（10s 超时），按域分组绑定各专家；MCP 形态见 `agent/mcp_agent.py`（langchain-mcp-adapters 拉起 PHP Server，验证"工具层可替换"）
+- **退款节点（方案 B）**：LLM 抽取参数（带最近对话上下文，支持"这个订单"指代消解）→ 状态机校验（拒绝 PENDING_PAYMENT/CANCELLED/REFUNDED 等）→ 大额（全额 >500USD）或超额走 `interrupt` 人工确认 → 提交后立即返回"已提交待审批"（不挂起），审批结果由 RabbitMQ 事件驱动（见 7.3.1）
 - **RAG 节点**：检索 Top-K 片段 → 重排 → 拼上下文 → DeepSeek 生成带引用的回答
+- **上下文裁剪**（`build_context`）：保留最近 10 条原文（回合边界对齐防工具消息配对断裂）+ 更早 LLM 摘要（只概括主题禁细节）+ 未决事项注入 system
 - **兜底**：任何工具空结果/异常 → "未查到，建议换个条件"，绝不编造
+
 
 ### 7.3 退款审批时序（human-in-the-loop）
 
