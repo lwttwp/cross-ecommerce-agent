@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TraceIngestController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -32,6 +33,9 @@ Route::prefix('v1')->group(function () {
         Route::post('tasks', [TaskController::class, 'store']);
         Route::get('tasks/{taskNo}', [TaskController::class, 'show']);
         Route::get('tasks/{taskNo}/download', [TaskController::class, 'download']);
+
+        // 内部：Agent 每轮对话的链路 span 上报（不是业务接口，不对外）
+        Route::post('internal/traces', [TraceIngestController::class, 'store']);
     });
 
     // admin 角色（资金风险操作，仅人工审批）

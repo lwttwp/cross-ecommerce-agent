@@ -44,6 +44,8 @@
 | 聊天服务  | FastAPI + WebSocket(流式 / 多会话 / 审批推送)           |
 | 前端    | 原生 HTML/CSS/JS(零框架零构建,单文件)                    |
 | RAG   | Chroma + 百炼 embedding + 混合检索(向量 + BM25 + RRF)   |
+| 可观测   | 自建全链路 trace(trace_requests 表 + JSON 日志 + Prometheus 指标,零额外容器) |
+| 多用户   | 复用后台 Laravel session 做 SSO,会话/审计按员工隔离               |
 | 部署    | Docker Compose(nginx → php-fpm → postgres + chat,端口错开) |
 
 ## 快速开始
@@ -73,6 +75,9 @@ curl http://127.0.0.1:8000/api/v1/health     # {"code":0} 即就绪
 - **退款确认**:大额退款弹确认卡片,human-in-the-loop
 - **审批实时通知**:退款审批(通过/驳回)结果经 RabbitMQ 事件实时推送到会话窗口
 - **上下文裁剪**:发给大模型的只保留最近 10 条原文 + 更早历史摘要 + 未决事项(待审批退款等)
+- **多用户隔离**:聊天页复用后台登录态(`/login`),每个客服只看自己的会话;管理员可查看全部会话与链路
+- **全链路追踪**:一条消息一个 `trace_id`,串起 chat → LangGraph → 工具 → 业务 API → 队列 → 审批通知;
+  管理员在 `/admin/traces` 按 trace_id 查看每一跳耗时与关联审计记录
 
 ### Agent 本地开发
 

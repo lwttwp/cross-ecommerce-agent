@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web;
 
 use App\Exceptions\BusinessException;
@@ -7,11 +9,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Refund;
 use App\Services\OrderService;
 use App\Services\RefundEventPublisher;
+use App\Support\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
  * 审批页（M2）：给人看的退款审批单页，列表 + 通过/驳回。
+ *
+ * 多用户：审批人写真实登录用户（auth()->id()），不再取「第一个 admin」；
+ * approve/reject 路由挂 role:admin；列表/详情所有登录用户可见，按钮对客服隐藏。
  */
 class RefundController extends Controller
 {
@@ -61,11 +67,19 @@ class RefundController extends Controller
             return back()->with('error', '退款单不存在');
         }
 
+        $user = $request->user();
+
         try {
-            $this->orders->approveRefund($refund, 'admin');
+            $this->orders->approveRefund($refund, $user?->name ?? 'admin', $user?->id);
         } catch (BusinessException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        AuditLogger::log('refund.approve', 'refund', $refund->refund_no, [
+            'order_no' => $refund->order?->order_no,
+            'amount' => (float) $refund->amount,
+            'channel' => 'web',
+        ]);
 
         // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
         app(RefundEventPublisher::class)->publish([
@@ -88,11 +102,19 @@ class RefundController extends Controller
             return back()->with('error', '退款单不存在');
         }
 
+        $user = $request->user();
+
         try {
-            $this->orders->rejectRefund($refund, 'admin');
+            $this->orders->rejectRefund($refund, $user?->name ?? 'admin', $user?->id);
         } catch (BusinessException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        AuditLogger::log('refund.reject', 'refund', $refund->refund_no, [
+            'order_no' => $refund->order?->order_no,
+            'amount' => (float) $refund->amount,
+            'channel' => 'web',
+        ]);
 
         // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
         app(RefundEventPublisher::class)->publish([

@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Jobs\RunTaskJob;
 use App\Models\Task;
 use App\Support\ApiResponse;
+use App\Support\AuditLogger;
+use App\Support\TraceContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -32,11 +34,18 @@ class TaskController extends Controller
             'type' => $data['type'],
             'params' => $data['params'] ?? [],
             'status' => TaskStatus::Pending,
-            'created_by' => null, // M3 接入用户体系后可填
+            // 多用户：记录发起人（Agent 透传的员工 id；脚本/机器调用为 null）
+            'created_by' => TraceContext::userId(),
         ]);
 
-        // 发布到 RabbitMQ（连接默认队列 RABBITMQ_QUEUE=tasks），Worker 消费执行
-        dispatch(new RunTaskJob($task->id));
+        AuditLogger::log('task.create', 'task', $task->task_no, [
+            'type' => $data['type'],
+            'params' => $data['params'] ?? [],
+        ]);
+
+        // 发布到 RabbitMQ（连接默认队列 RABBITMQ_QUEUE=tasks），Worker 消费执行；
+        // trace_id 随 job 传递，worker 侧的 span 能与本次请求串起来
+        dispatch(new RunTaskJob($task->id, TraceContext::id()));
 
         return ApiResponse::ok($this->format($task), '任务已创建，排队中');
     }

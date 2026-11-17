@@ -157,6 +157,12 @@
   .session-item:hover .s-del { opacity: 1; }
   .session-item .s-del:hover { background: #fecaca; color: var(--error); }
   .sidebar .empty { font-size: 12px; color: var(--muted); text-align: center; padding: 30px 10px; }
+  .who { margin-left: auto; margin-right: 14px; font-size: 13px; color: var(--muted);
+         display: flex; align-items: center; gap: 8px; }
+  .who b { color: var(--text); font-weight: 600; }
+  .who .who-link { color: #2563eb; text-decoration: none; font-size: 12px; }
+  .who .who-link:hover { text-decoration: underline; }
+  .session-item .s-owner { font-size: 11px; color: #b45309; }
 </style>
 </head>
 <body>
@@ -168,6 +174,10 @@
       <div>
         <div class="title">智能订单助手</div>
         <div class="subtitle">跨境电商 · 查询 / 退款 / 报表 · 审批实时通知</div>
+      </div>
+      <div class="who" id="who" title="当前登录账号（来自后台 SSO）">
+        <span id="whoName">未登录</span>
+        <a href="/admin" class="who-link">后台</a>
       </div>
       <div class="conn disconnected" id="conn"><span class="dot"></span><span id="connText">连接中…</span></div>
     </header>
@@ -232,11 +242,33 @@ const connText = $("connText");
 const sessionList = $("sessionList");
 
 // ---------- HTTP API ----------
+// 当前登录员工（由 /api/sessions 带回，服务端已用 Laravel session 校验过）
+let currentUser = null;
+
 async function api(path, opts) {
-  const r = await fetch(BASE_PATH + path, opts);
-  const j = await r.json();
+  const r = await fetch(BASE_PATH + path, Object.assign({ credentials: "same-origin" }, opts || {}));
+  if (r.status === 401) { redirectToLogin(); throw new Error("未登录或会话已过期"); }
+  let j;
+  try { j = await r.json(); } catch (e) { throw new Error("服务端响应不是 JSON"); }
+  if (j.user) { currentUser = j.user; renderUser(); }
   if (j.code !== 0) throw new Error(j.message || "API error");
   return j.data;
+}
+
+function redirectToLogin() {
+  // 登录页会带 redirect 参数把用户送回当前页面
+  const back = location.pathname + location.search;
+  location.href = "/login?redirect=" + encodeURIComponent(back);
+}
+
+function renderUser() {
+  const el = $("whoName");
+  if (!el) return;
+  if (!currentUser) { el.textContent = "未登录"; return; }
+  el.textContent = "";
+  const b = document.createElement("b");
+  b.textContent = currentUser.name + (currentUser.role === "admin" ? "（管理员）" : "");
+  el.appendChild(b);
 }
 
 // ---------- 消息渲染 ----------
@@ -370,6 +402,13 @@ async function refreshSessions() {
     item.innerHTML = `<div class="s-title"></div><div class="s-time"></div><div class="s-del" title="删除会话">×</div>`;
     item.querySelector(".s-title").textContent = s.title || "新会话";
     item.querySelector(".s-time").textContent = fmtTime(s.last_active);
+    // 管理员能看到别人的会话，标注归属，避免误操作
+    if (s.owner_name && currentUser && s.owner_id !== currentUser.id) {
+      const owner = document.createElement("div");
+      owner.className = "s-owner";
+      owner.textContent = "归属：" + s.owner_name;
+      item.appendChild(owner);
+    }
     item.onclick = () => switchSession(s.session_id);
     item.querySelector(".s-del").onclick = (e) => {
       e.stopPropagation();
@@ -390,7 +429,8 @@ async function deleteSession(sid) {
     // 当前会话被删: 断开旧 WS,切到剩余第一个或新建
     if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} }
     const rest = sessions.filter((s) => s.session_id !== sid);
-    if (rest.length) { await switchSession(rest[0].session_id); }
+    const own = rest.find((s) => currentUser && s.owner_id === currentUser.id);
+    if (own) { await switchSession(own.session_id); }
     else { await createSession(); }
   } else {
     await refreshSessions();
@@ -462,8 +502,12 @@ function connect() {
         break;
     }
   };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
     connected = false;
+    // 4401 未登录 / 4403 越权 / 4404 会话不存在：重连没有意义，直接处理
+    if (ev.code === 4401) { setConn("disconnected", "未登录"); redirectToLogin(); return; }
+    if (ev.code === 4403) { setConn("disconnected", "无权限"); addError("该会话不属于当前账号，已拒绝访问"); return; }
+    if (ev.code === 4404) { setConn("disconnected", "会话不存在"); addError("会话不存在或已被删除"); return; }
     setConn("disconnected", "已断开，重连中…");
     setTimeout(() => { if (currentSessionId) connect(); }, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 2, 15000);
@@ -520,10 +564,14 @@ function setConn(state, text) {
   const exists = sessions.some((s) => s.session_id === saved);
   if (exists) {
     await switchSession(saved);
-  } else if (sessions.length) {
-    await switchSession(sessions[0].session_id);
   } else {
-    await createSession();
+    // 管理员能看到全站会话：不要自动进入别人的会话，优先选自己的，找不到就新建
+    const own = sessions.find((s) => currentUser && s.owner_id === currentUser.id);
+    if (own) {
+      await switchSession(own.session_id);
+    } else {
+      await createSession();
+    }
   }
 })();
 </script>

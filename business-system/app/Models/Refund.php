@@ -11,6 +11,7 @@ class Refund extends Model
     protected $fillable = [
         'refund_no', 'order_id', 'customer_id', 'amount', 'currency',
         'reason', 'status', 'order_status_before', 'approver_id', 'approved_at',
+        'requested_by_user_id', 'requested_by_name',
     ];
 
     protected function casts(): array

@@ -54,7 +54,8 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', env('LOG_STACK', 'single')),
+            // 默认双写：daily 给人看，json 给日志采集/检索用（单行 JSON，含 trace_id）
+            'channels' => explode(',', env('LOG_STACK', 'daily,json')),
             'ignore_exceptions' => false,
         ],
 
@@ -71,6 +72,22 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+        ],
+
+        // 结构化日志：一行一个 JSON，字段含 message/level/context/datetime。
+        // trace_id / user_id 由 TraceRequest 中间件的 Log::withContext 注入。
+        'json' => [
+            // 用 single 保证文件名固定为 laravel.json.log（daily 会变成 laravel.json-YYYY-MM-DD.log）。
+            // 轮转交给外部采集/运维；若要按天，改为 daily 并同步 CLAUDE.md 与设计文档。
+            'driver' => 'single',
+            'path' => storage_path('logs/laravel.json.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+            'formatter_with' => [
+                'batchMode' => Monolog\Formatter\JsonFormatter::BATCH_MODE_NEWLINES,
+                'appendNewline' => true,
+            ],
         ],
 
         'slack' => [

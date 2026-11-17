@@ -44,7 +44,7 @@
                 <div class="empty">关联订单缺失</div>
             @endif
 
-            @if ($refund->status->value === 'pending')
+            @if ($refund->status->value === 'pending' && auth()->user()?->role === 'admin')
                 <div style="display:flex; gap:8px; margin-top:16px;">
                     <form method="POST" action="{{ url("/admin/refunds/{$refund->id}/approve") }}">
                         @csrf
@@ -54,6 +54,10 @@
                         @csrf
                         <button type="submit" style="background:#dc2626;">驳回</button>
                     </form>
+                </div>
+            @elseif ($refund->status->value === 'pending')
+                <div class="flash" style="background:#fef3c7;color:#92400e;margin-top:16px;">
+                    当前账号不是管理员，无法审批；请联系管理员处理。
                 </div>
             @endif
         </div>

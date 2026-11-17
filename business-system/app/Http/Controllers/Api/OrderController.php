@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Support\ApiResponse;
+use App\Support\AuditLogger;
+use App\Support\TraceContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -91,6 +93,12 @@ class OrderController extends Controller
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
 
+        AuditLogger::log('order.create', 'order', $order->order_no, [
+            'customer_id' => $data['customer_id'],
+            'currency' => $data['currency'],
+            'items' => $data['items'],
+        ]);
+
         return ApiResponse::ok($this->format($order->load(['items', 'customer', 'statusLogs'])), '下单成功');
     }
 
@@ -113,10 +121,15 @@ class OrderController extends Controller
         }
 
         try {
-            $order = $this->orders->updateAddress($order, $address, (string) $request->attributes->get('api_role'));
+            $order = $this->orders->updateAddress($order, $address, $this->operator($request));
         } catch (BusinessException $e) {
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
+
+        AuditLogger::log('order.address', 'order', $order->order_no, [
+            'country' => $address['country'] ?? null,
+            'city' => $address['city'] ?? null,
+        ]);
 
         return ApiResponse::ok($this->format($order->load('customer')), '收货地址已更新');
     }
@@ -130,12 +143,25 @@ class OrderController extends Controller
         }
 
         try {
-            $order = $this->orders->cancel($order, (string) $request->attributes->get('api_role'));
+            $order = $this->orders->cancel($order, $this->operator($request));
         } catch (BusinessException $e) {
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
 
+        AuditLogger::log('order.cancel', 'order', $order->order_no, [
+            'status_before' => 'PENDING_PAYMENT',
+        ]);
+
         return ApiResponse::ok($this->format($order->load('customer')), '订单已取消');
+    }
+
+    /**
+     * 操作人标识：优先员工姓名（Agent 透传 X-User-Name），退化为机器角色。
+     * 订单状态日志里的 operator 字段据此可读性大增（以前只有 "agent"）。
+     */
+    private function operator(Request $request): string
+    {
+        return TraceContext::userName() ?? (string) $request->attributes->get('api_role', 'agent');
     }
 
     /** 物流轨迹 */

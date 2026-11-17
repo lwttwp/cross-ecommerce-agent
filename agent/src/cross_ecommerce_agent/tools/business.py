@@ -1,6 +1,11 @@
-import cross_ecommerce_agent.config as config
+import logging
+import time
+
 import httpx
 from langchain_core.tools import tool
+
+import cross_ecommerce_agent.config as config
+from cross_ecommerce_agent import obs
 
 
 class BusinessError(Exception):
@@ -12,40 +17,78 @@ class BusinessError(Exception):
 
 
 class BusinessApiClient:
-    """业务系统 REST 客户端:统一鉴权、超时、响应解析。"""
+    """业务系统 REST 客户端:统一鉴权、超时、响应解析。
+
+    可观测（多用户 + 全链路）：
+    - 每个请求带上 obs 上下文里的 X-Trace-Id / X-User-Id / X-User-Name / X-User-Role，
+      业务系统的审计与链路表据此记录「哪个员工在哪个链路里做了什么」；
+    - 每次调用打一条 tool.call 结构化日志 + 计数/耗时指标，慢在哪一层一查便知。
+    """
 
     def __init__(self):
-        self.client = httpx.Client(
-            base_url=config.BIZ_API_BASE,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {config.BIZ_API_TOKEN_AGENT}"
-            },
-            timeout=10.0
-        )
+        self.client = httpx.Client(base_url=config.BIZ_API_BASE, timeout=10.0)
+
+    def _headers(self) -> dict:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {config.BIZ_API_TOKEN_AGENT}",
+        }
+        headers.update(obs.outbound_headers())   # trace + 员工身份（缺省时为空）
+        return headers
 
     def get(self, path: str, params: dict | None = None) -> dict:
-        resp = self.client.get(path, params=params)
-        return self._parse(resp)
+        resp = self._request("GET", path, params=params)
+        return self._parse(resp, path)
 
     def post(self, path: str, json: dict | None = None) -> dict:
-        resp = self.client.post(path, json=json)
-        return self._parse(resp)
+        resp = self._request("POST", path, json=json)
+        return self._parse(resp, path)
 
     def get_text(self, path: str, params: dict | None = None) -> str:
         """返回原始文本(用于 CSV 下载),不走 JSON 解析。"""
-        resp = self.client.get(path, params=params)
+        resp = self._request("GET", path, params=params)
         resp.raise_for_status()
         return resp.text
 
-    def _parse(self, resp: httpx.Response) -> dict:
+    def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
+        started = time.perf_counter()
+        try:
+            resp = self.client.request(method, path, headers=self._headers(), **kwargs)
+        except httpx.HTTPError as exc:
+            self._record(method, path, None, started, error=f"{type(exc).__name__}: {exc}")
+            raise
+        self._record(method, path, resp.status_code, started)
+        return resp
+
+    @staticmethod
+    def _record(method: str, path: str, status: int | None, started: float,
+                error: str | None = None) -> None:
+        duration_ms = obs.ms_since(started)
+        ok = error is None and status is not None and status < 400
+        level = logging.INFO if ok else logging.WARNING
+        obs.event(
+            "tool.call",
+            level,
+            method=method,
+            path=path,
+            status=status if status is not None else -1,
+            ok=ok,
+            duration_ms=duration_ms,
+            **({"error": error} if error else {}),
+        )
+        obs.metrics.inc("ce_tool_calls_total", {"path": obs.metric_path(path), "ok": "1" if ok else "0"})
+        obs.metrics.observe("ce_tool_call_seconds", duration_ms / 1000.0, {"path": obs.metric_path(path)})
+
+    def _parse(self, resp: httpx.Response, path: str) -> dict:
         # 状态码前置:nginx 502/500 可能返回 HTML,resp.json() 会抛 ValueError
         try:
             body = resp.json()
         except ValueError:
+            obs.metrics.inc("ce_tool_errors_total", {"path": obs.metric_path(path), "kind": "non_json"})
             raise BusinessError(f"HTTP {resp.status_code}: 非 JSON 响应")
         if body.get("code") != 0:
             # 优先透出业务消息(如"订单不存在"),HTTP 状态码兜底
+            obs.metrics.inc("ce_tool_errors_total", {"path": obs.metric_path(path), "kind": "business"})
             raise BusinessError(
                 body.get("message") or f"HTTP {resp.status_code}",
                 body.get("code") or resp.status_code,

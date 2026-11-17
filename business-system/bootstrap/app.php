@@ -15,11 +15,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'api.token' => ApiTokenAuth::class,
+            'role' => \App\Http\Middleware\RequireRole::class,
         ]);
 
-        // 所有 /api/* 请求强制按 JSON 响应（防止校验失败时 302 跳回欢迎页）
+        // 全链路追踪：API 放最前面（尽早拿到/生成 trace_id 并注入日志上下文），
+        // Web 追加在会话启动之后（terminate 时才能取到登录用户）。
         $middleware->api(prepend: [
+            \App\Http\Middleware\TraceRequest::class,
             \App\Http\Middleware\ForceJsonResponse::class,
+        ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\TraceRequest::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

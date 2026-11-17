@@ -9,6 +9,8 @@ use App\Models\Refund;
 use App\Services\OrderService;
 use App\Services\RefundEventPublisher;
 use App\Support\ApiResponse;
+use App\Support\AuditLogger;
+use App\Support\TraceContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,10 +32,24 @@ class RefundController extends Controller
         }
 
         try {
-            $refund = $this->orders->applyRefund($order, $data['reason'], isset($data['amount']) ? (float) $data['amount'] : null);
+            $refund = $this->orders->applyRefund(
+                $order,
+                $data['reason'],
+                isset($data['amount']) ? (float) $data['amount'] : null,
+                TraceContext::userName() ?? 'agent',
+                TraceContext::userId(),
+                TraceContext::userName(),
+            );
         } catch (BusinessException $e) {
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
+
+        AuditLogger::log('refund.apply', 'refund', $refund->refund_no, [
+            'order_no' => $order->order_no,
+            'amount' => (float) $refund->amount,
+            'currency' => $refund->currency,
+            'requested_by' => TraceContext::userName(),
+        ]);
 
         return ApiResponse::ok($this->format($refund), '退款申请已提交，等待人工审批');
     }
@@ -68,10 +84,16 @@ class RefundController extends Controller
         }
 
         try {
-            $refund = $this->orders->approveRefund($refund);
+            $refund = $this->orders->approveRefund($refund, TraceContext::userName() ?? 'admin', TraceContext::userId());
         } catch (BusinessException $e) {
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
+
+        AuditLogger::log('refund.approve', 'refund', $refund->refund_no, [
+            'order_no' => $refund->order?->order_no,
+            'amount' => (float) $refund->amount,
+            'approver_id' => TraceContext::userId(),
+        ]);
 
         // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
         app(RefundEventPublisher::class)->publish([
@@ -95,10 +117,16 @@ class RefundController extends Controller
         }
 
         try {
-            $refund = $this->orders->rejectRefund($refund);
+            $refund = $this->orders->rejectRefund($refund, TraceContext::userName() ?? 'admin', TraceContext::userId());
         } catch (BusinessException $e) {
             return ApiResponse::fail($e->businessCode, $e->getMessage(), $e->httpStatus);
         }
+
+        AuditLogger::log('refund.reject', 'refund', $refund->refund_no, [
+            'order_no' => $refund->order?->order_no,
+            'amount' => (float) $refund->amount,
+            'approver_id' => TraceContext::userId(),
+        ]);
 
         // 方案 B: 发布审批结果事件,Agent 订阅后异步通知用户
         app(RefundEventPublisher::class)->publish([
@@ -126,6 +154,7 @@ class RefundController extends Controller
             'status' => $refund->status->value,
             'status_label' => $refund->status->label(),
             'order_status_before' => $refund->order_status_before,
+            'requested_by_name' => $refund->requested_by_name,
             'approved_at' => $refund->approved_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
             'created_at' => $refund->created_at?->timezone('Asia/Shanghai')->format('Y-m-d H:i:s'),
         ];

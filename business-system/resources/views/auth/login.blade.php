@@ -32,7 +32,7 @@
     <h1>跨境电商智能订单助手</h1>
     <div class="sub">后台管理系统</div>
 
-    <form method="POST" action="{{ url('/login') }}">
+    <form method="POST" action="{{ url('/login') }}{{ request('redirect') ? '?redirect='.urlencode(request('redirect')) : '' }}">
         @csrf
         <label>邮箱</label>
         <input type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username">
@@ -47,7 +47,7 @@
         <div class="error">{{ $errors->first() }}</div>
     @endif
 
-    <div class="hint">演示账号：admin@example.com / admin123</div>
+    <div class="hint">管理员：admin@example.com / admin123<br>客服：agent@example.com / agent123</div>
 </div>
 </body>
 </html>
