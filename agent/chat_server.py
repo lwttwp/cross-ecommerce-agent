@@ -47,6 +47,7 @@ log = logging.getLogger("agent")
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import JSONResponse, PlainTextResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
 from chat.auth import ChatUser, auth, extract_cookie  # noqa: E402
 from chat.chat_manager import NotOwnerError, manager  # noqa: E402
@@ -59,6 +60,7 @@ import httpx  # noqa: E402
 
 # LangGraph 图（import 即建 checkpointer,需要 PG 在线）
 from cross_ecommerce_agent.graph.build import graph  # noqa: E402
+from cross_ecommerce_agent.rag.service import rag_service  # noqa: E402
 
 # WS 关闭码（前端据此跳登录/提示无权限）
 WS_CLOSE_UNAUTHORIZED = 4401
@@ -79,6 +81,13 @@ def require_user(request: Request) -> ChatUser:
     user = auth.verify(extract_cookie(request.headers))
     if user is None:
         raise HTTPException(status_code=401, detail="未登录或会话已过期")
+    return user
+
+
+def require_admin(user: ChatUser = Depends(require_user)) -> ChatUser:
+    """管理员依赖：会话合法且角色为 admin。"""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="需要管理员权限")
     return user
 
 
@@ -358,6 +367,50 @@ async def api_delete_session(session_id: str, user: ChatUser = Depends(require_u
         pass
     obs.event("session.deleted", session_id=session_id, by=user.id)
     return {"code": 0, "message": "会话已删除", "data": {"session_id": session_id}}
+
+
+# ============================================================
+# RAG 管理（仅管理员；供 /admin/rag 代理调用）
+# ============================================================
+class RagUploadPayload(BaseModel):
+    filename: str
+    content: str
+    access_level: str
+
+
+class RagClearPayload(BaseModel):
+    confirm: str
+
+
+@app.get("/api/rag/status")
+async def rag_status(user: ChatUser = Depends(require_admin)):
+    data = await asyncio.to_thread(rag_service.status)
+    return {"code": 0, "data": data}
+
+
+@app.post("/api/rag/upload")
+async def rag_upload(payload: RagUploadPayload, user: ChatUser = Depends(require_admin)):
+    try:
+        data = await asyncio.to_thread(
+            rag_service.upload, payload.filename, payload.content, payload.access_level
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"code": 0, "data": data}
+
+
+@app.post("/api/rag/rebuild")
+async def rag_rebuild(user: ChatUser = Depends(require_admin)):
+    data = await asyncio.to_thread(rag_service.rebuild)
+    return {"code": 0, "data": data}
+
+
+@app.post("/api/rag/clear")
+async def rag_clear(payload: RagClearPayload, user: ChatUser = Depends(require_admin)):
+    if payload.confirm != "CLEAR":
+        raise HTTPException(status_code=400, detail="确认词不正确")
+    data = await asyncio.to_thread(rag_service.clear)
+    return {"code": 0, "data": data}
 
 
 @app.get("/metrics")

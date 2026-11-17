@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'chat' => [
+        // 内部 RAG 管理接口（Laravel → chat:8082）
+        'base_url' => env('CHAT_INTERNAL_BASE', 'http://chat:8082'),
+    ],
+
 ];

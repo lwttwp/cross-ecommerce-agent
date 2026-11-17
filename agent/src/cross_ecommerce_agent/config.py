@@ -63,6 +63,10 @@ RAG_ACCESS_LEVELS = {
 RAG_DOC_ACCESS = {
     'dispute_resolution_policy.md': 'admin',
 }
+# --- RAG 管理页面（后台上传/重建/清空） ---
+RAG_UPLOAD_DIR = (BASE_DIR / os.getenv('RAG_UPLOAD_DIR', 'data/rag_documents')).resolve()
+RAG_ACCESS_POLICY_PATH = (BASE_DIR / os.getenv('RAG_ACCESS_POLICY_PATH', 'data/rag_access.json')).resolve()
+RAG_MAX_DOC_BYTES = 2 * 1024 * 1024
 md5_path = (BASE_DIR / os.getenv('RAG_MD5_PATH', 'md5.txt')).resolve()
 
 RAG_ANSWER_PROMPT = """你是跨境电商平台的售后客服助手。请严格依据下面的【参考资料】回答用户问题,不要使用参考资料以外的知识。
