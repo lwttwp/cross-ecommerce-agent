@@ -89,6 +89,9 @@ services:
     environment:
       # compose environment 覆盖 env_file(记忆里的坑: 密码等必须与 compose 一致)
       BIZ_API_BASE: http://php-web/api/v1      # 容器内业务 API 入口是 nginx(php-web)
+      BIZ_WEB_BASE: http://php-web             # 多用户：用后台登录态验票（GET /session/me）
+      CHAT_AUTH_MODE: "on"                     # on=必须登录；off=本地调试免登录（会告警）
+      OBS_SERVICE_NAME: agent
       CHECKPOINT_DB_DSN: postgresql://ce_app:ce_app_2026@postgres:5432/cross_ecommerce
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: "5672"

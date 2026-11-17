@@ -28,7 +28,14 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended('/admin');
+            // 支持登录后回到原页面（如 /chat/ 未登录被踢回登录页的场景）。
+            // 只接受站内绝对路径，避免开放重定向。
+            $target = (string) $request->query('redirect', '');
+            if ($target === '' || ! str_starts_with($target, '/') || str_starts_with($target, '//')) {
+                $target = '/admin';
+            }
+
+            return redirect()->intended($target);
         }
 
         return back()

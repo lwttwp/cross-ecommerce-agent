@@ -27,6 +27,7 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 import pika  # noqa: E402
+from cross_ecommerce_agent import obs  # noqa: E402
 from cross_ecommerce_agent.refund_mapper import lookup  # noqa: E402  # refund_no -> thread_id 映射
 from chat.chat_manager import manager  # noqa: E402
 
@@ -44,12 +45,16 @@ NOTIFY_DIR = os.path.join(BASE_DIR, "notifications")
 def build_notice(event: dict) -> str:
     result = event.get("result")
     result_cn = "✅ 已审批通过" if result == "approved" else "❌ 已被驳回"
+    actor = (event.get("actor") or {}).get("name")
     lines = [
         f"📢 [审批事件] 退款单 {event.get('refund_no')} {result_cn}",
         f"   订单号:   {event.get('order_no')}",
         f"   金额:     {event.get('amount')} {event.get('currency')}",
         f"   审批时间: {event.get('approved_at')}",
     ]
+    if actor:
+        # 多用户：告知提交人「谁审的」，便于对齐口径
+        lines.append(f"   审批人:   {actor}")
     if result == "approved":
         lines.append("   → 您的退款申请已通过,款项将按原支付方式退回")
     else:
@@ -101,23 +106,30 @@ class ChatEventBridge:
 
             refund_no = event.get("refund_no")
             text = build_notice(event)
-            print("=" * 56)
-            print(text.strip())
+            # 审批事件的 trace_id 由 Laravel 发布时带上；缺失时本地生成，
+            # 保证日志里永远有 id（标记 trace_origin 便于区分）
+            trace_id = event.get("trace_id") or obs.new_trace_id()
+            with obs.bind(trace_id=trace_id):
+                obs.event("event.consumed", refund_no=refund_no, result=event.get("result"),
+                          traced=bool(event.get("trace_id")))
+                print("=" * 56)
+                print(text.strip())
 
-            thread_id = lookup(refund_no) if refund_no else None
-            if thread_id:
-                # ① 保留原行为: 写通知文件
-                try:
-                    os.makedirs(NOTIFY_DIR, exist_ok=True)
-                    with open(os.path.join(NOTIFY_DIR, f"{thread_id}.md"), "a", encoding="utf-8") as f:
-                        f.write(text + "\n")
-                except OSError as e:
-                    print(f"[notify] 写文件失败: {e}")
-                # ② 推送聊天界面（跨线程投递到事件循环）
-                self._push({"thread_id": thread_id, "type": "notice", "content": text.strip()})
-            else:
-                print("ℹ️  无会话映射(可能非 Agent 提交的退款),仅打印通知")
-            print("=" * 56, flush=True)
+                thread_id = lookup(refund_no) if refund_no else None
+                if thread_id:
+                    # ① 保留原行为: 写通知文件
+                    try:
+                        os.makedirs(NOTIFY_DIR, exist_ok=True)
+                        with open(os.path.join(NOTIFY_DIR, f"{thread_id}.md"), "a", encoding="utf-8") as f:
+                            f.write(text + "\n")
+                    except OSError as e:
+                        print(f"[notify] 写文件失败: {e}")
+                    # ② 推送聊天界面（跨线程投递到事件循环）
+                    self._push({"thread_id": thread_id, "type": "notice", "content": text.strip()})
+                    obs.event("event.broadcast", thread_id=thread_id)
+                else:
+                    print("ℹ️  无会话映射(可能非 Agent 提交的退款),仅打印通知")
+                print("=" * 56, flush=True)
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
         try:

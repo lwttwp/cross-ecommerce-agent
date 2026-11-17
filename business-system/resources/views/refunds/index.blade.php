@@ -45,7 +45,7 @@
                     <td><span class="badge {{ $refund->status->value }}">{{ $refund->status->label() }}</span></td>
                     <td class="nowrap">{{ $refund->created_at?->format('Y-m-d H:i') }}</td>
                     <td>
-                        @if ($refund->status->value === 'pending')
+                        @if ($refund->status->value === 'pending' && auth()->user()?->role === 'admin')
                             <div style="display:flex; gap:6px;">
                                 <form method="POST" action="{{ url("/admin/refunds/{$refund->id}/approve") }}">
                                     @csrf
@@ -56,6 +56,8 @@
                                     <button type="submit" style="background:#dc2626;">驳回</button>
                                 </form>
                             </div>
+                        @elseif ($refund->status->value === 'pending')
+                            <small style="color:#92400e;">待管理员审批</small>
                         @else
                             <small>{{ $refund->approved_at?->format('Y-m-d H:i') }}</small>
                         @endif

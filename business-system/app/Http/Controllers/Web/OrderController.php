@@ -9,6 +9,7 @@ use App\Models\ExchangeRate;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\OrderService;
+use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -82,16 +83,27 @@ class OrderController extends Controller
             return back()->with('error', '订单不存在');
         }
 
+        $user = $request->user();
+
         try {
             $refund = $this->orders->applyRefund(
                 $order,
                 $data['reason'],
                 isset($data['amount']) ? (float) $data['amount'] : null,
-                'admin',
+                $user?->name ?? 'admin',
+                $user?->id,
+                $user?->name,
             );
         } catch (BusinessException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        AuditLogger::log('refund.apply', 'refund', $refund->refund_no, [
+            'order_no' => $order->order_no,
+            'amount' => (float) $refund->amount,
+            'currency' => $refund->currency,
+            'channel' => 'web',
+        ]);
 
         return redirect('/admin/refunds')
             ->with('success', "退款申请 {$refund->refund_no} 已提交，等待审批");
@@ -144,6 +156,13 @@ class OrderController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
+        AuditLogger::log('order.create', 'order', $order->order_no, [
+            'customer_id' => (int) $data['customer_id'],
+            'currency' => $data['currency'],
+            'items' => array_values($data['items']),
+            'channel' => 'web',
+        ]);
+
         return redirect('/admin/orders/'.$order->order_no)
             ->with('success', "订单 {$order->order_no} 创建成功（待支付）");
     }
@@ -161,6 +180,12 @@ class OrderController extends Controller
         } catch (BusinessException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        AuditLogger::log('order.pay', 'order', $order->order_no, [
+            'total_amount' => (float) $order->total_amount,
+            'currency' => $order->currency,
+            'channel' => 'web',
+        ]);
 
         return back()->with('success', "订单 {$order->order_no} 已支付");
     }
@@ -197,6 +222,11 @@ class OrderController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
+        AuditLogger::log('order.ship', 'order', $order->order_no, [
+            'tracking_no' => $trackingNo,
+            'channel' => 'web',
+        ]);
+
         return redirect('/admin/orders')
             ->with('success', "订单 {$order->order_no} 已发货（运单号 {$trackingNo}）");
     }
@@ -214,6 +244,10 @@ class OrderController extends Controller
         } catch (BusinessException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        AuditLogger::log('order.complete', 'order', $order->order_no, [
+            'channel' => 'web',
+        ]);
 
         return back()->with('success', "订单 {$order->order_no} 已签收完成");
     }

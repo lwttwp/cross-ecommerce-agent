@@ -10,7 +10,6 @@ use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\Product;
 use App\Models\Refund;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -156,6 +155,11 @@ class OrderService
     /** 取消订单（仅待支付，返还库存） */
     public function cancel(Order $order, string $operator = 'agent'): Order
     {
+        // 幂等保护：transition() 对同状态会早退，不拦住会把库存再加一遍
+        if ($order->status === OrderStatus::Cancelled) {
+            throw new BusinessException('订单已取消，请勿重复操作', 40901);
+        }
+
         return DB::transaction(function () use ($order, $operator) {
             foreach ($order->items as $item) {
                 Product::where('id', $item->product_id)->increment('stock', $item->quantity);
@@ -184,9 +188,19 @@ class OrderService
         return $order->fresh();
     }
 
-    /** 申请退款（进入退款中，等待人工审批） */
-    public function applyRefund(Order $order, string $reason, ?float $amount = null, string $operator = 'agent'): Refund
-    {
+    /** 申请退款（进入退款中，等待人工审批）
+     *
+     * @param  int|null  $requestedByUserId  申请人（员工）id，来自 Agent 透传或后台登录用户
+     * @param  string|null  $requestedByName  申请人姓名快照（员工改名后历史仍可读）
+     */
+    public function applyRefund(
+        Order $order,
+        string $reason,
+        ?float $amount = null,
+        string $operator = 'agent',
+        ?int $requestedByUserId = null,
+        ?string $requestedByName = null,
+    ): Refund {
         if (! in_array($order->status->value, self::REFUNDABLE, true)) {
             throw new BusinessException('当前订单状态不可申请退款', 40902);
         }
@@ -198,7 +212,7 @@ class OrderService
             throw new BusinessException('退款金额不能超过实付金额', 40904);
         }
 
-        return DB::transaction(function () use ($order, $reason, $amount, $operator) {
+        return DB::transaction(function () use ($order, $reason, $amount, $operator, $requestedByUserId, $requestedByName) {
             $refund = Refund::create([
                 'refund_no' => self::generateRefundNo(),
                 'order_id' => $order->id,
@@ -208,6 +222,8 @@ class OrderService
                 'reason' => $reason,
                 'status' => 'pending',
                 'order_status_before' => $order->status->value,
+                'requested_by_user_id' => $requestedByUserId,
+                'requested_by_name' => $requestedByName,
             ]);
             $this->transition($order, OrderStatus::Refunding, "提交退款申请（{$refund->refund_no}），等待审批", $operator);
 
@@ -216,9 +232,9 @@ class OrderService
     }
 
     /** 审批通过退款 → 订单已退款 */
-    public function approveRefund(Refund $refund, string $operator = 'admin'): Refund
+    public function approveRefund(Refund $refund, string $operator = 'admin', ?int $approverId = null): Refund
     {
-        return DB::transaction(function () use ($refund, $operator) {
+        return DB::transaction(function () use ($refund, $operator, $approverId) {
             $this->assertPending($refund);
             $order = $refund->order;
             if ($order->status !== OrderStatus::Refunding) {
@@ -226,7 +242,8 @@ class OrderService
             }
             $refund->update([
                 'status' => 'approved',
-                'approver_id' => User::where('role', 'admin')->value('id'),
+                // 多用户：必须记录真实审批人；API 侧机器审批无员工身份时为 null，不伪造
+                'approver_id' => $approverId,
                 'approved_at' => now(),
             ]);
             $this->transition($order, OrderStatus::Refunded, "退款审批通过（{$refund->refund_no}）", $operator);
@@ -236,15 +253,15 @@ class OrderService
     }
 
     /** 审批驳回退款 → 订单恢复原状态 */
-    public function rejectRefund(Refund $refund, string $operator = 'admin'): Refund
+    public function rejectRefund(Refund $refund, string $operator = 'admin', ?int $approverId = null): Refund
     {
-        return DB::transaction(function () use ($refund, $operator) {
+        return DB::transaction(function () use ($refund, $operator, $approverId) {
             $this->assertPending($refund);
             $order = $refund->order;
             $restore = OrderStatus::tryFrom($refund->order_status_before) ?? OrderStatus::Paid;
             $refund->update([
                 'status' => 'rejected',
-                'approver_id' => User::where('role', 'admin')->value('id'),
+                'approver_id' => $approverId,
                 'approved_at' => now(),
             ]);
             $this->transition($order, $restore, "退款审批驳回（{$refund->refund_no}），订单状态恢复", $operator);

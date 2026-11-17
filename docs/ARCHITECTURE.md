@@ -481,10 +481,42 @@ docker compose down -v             # 停止并清空数据卷（重新造数）
 
 ---
 
-## 11. 可观测性与评测
+## 11. 可观测性、多用户与评测
 
-- **日志**：业务 API 请求日志（method/path/status/耗时/trace_id）、状态流转日志、审批日志
-- **Agent 追踪**：LangSmith 记录每次运行的节点耗时、工具调用、token 消耗
+详细设计与阶段拆解见 [`docs/OBSERVABILITY_AND_ISOLATION.md`](./OBSERVABILITY_AND_ISOLATION.md)。
+
+### 11.1 全链路追踪
+
+一次用户提问生成一个 `trace_id`，贯穿 chat → LangGraph → 工具 → 业务 API → RabbitMQ → Worker → 审批通知：
+
+```
+WS 消息 ──▶ trace_id ──┬─ trace_requests: agent.round   (对话轮次/意图/工具/耗时)
+                       ├─ trace_requests: http.request  (每个 API 请求)
+                       ├─ trace_requests: queue.job     (异步任务)
+                       ├─ trace_requests: event.publish (审批事件)
+                       └─ JSON 日志: tool.call / graph.error / event.consumed
+```
+
+- Agent 侧：`agent/src/cross_ecommerce_agent/obs.py`（contextvars + JSON 日志 + 指标），
+  不直连业务库，轮次结果通过 `POST /api/v1/internal/traces` 上报
+- 业务侧：`App\Http\Middleware\TraceRequest` + `App\Support\TraceContext`，
+  采信 `X-Trace-Id`、注入日志上下文、`terminate` 落库
+- 页面：`/admin/traces`（仅管理员），按 trace_id 查看整条链路与关联审计
+
+### 11.2 多用户隔离
+
+- 身份：复用后台 Laravel session（`GET /session/me`），聊天服务不维护第二套账号
+- 会话：`chat_sessions.json` v2 带 `owner_id`，列表/历史/删除/WS 全部校验归属
+- 审计：`audit_logs` 记录写操作的操作人、参数、trace_id；退款单记录申请人与真实审批人
+- 权限：资金审批与链路查询仅管理员（`role:admin`）
+
+### 11.3 指标
+
+`GET /metrics`（chat 服务）：`ce_ws_connections_active`、`ce_chat_messages_total`、
+`ce_agent_round_seconds`、`ce_tool_calls_total`、`ce_agent_errors_total`。
+
+### 11.4 评测
+
 - **评测集**（`eval/` 目录）：
   - `cases.jsonl`：34 条用例（含期望结果与负向断言，见 PRD §9.2）
   - `run_eval.py`：逐条跑 Agent → 结构化断言（正确/错误/是否编造）→ 输出通过率报告

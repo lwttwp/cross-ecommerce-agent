@@ -8,6 +8,10 @@
 投递形态(演示): agent/notifications/{thread_id}.md 追加通知文本。
 生产建议: 换成 WebSocket/SSE 推送或消息直接进会话通道,映射存 Redis。
 
+注意: chat 服务内置的 ChatEventBridge 也消费同一队列 refund_events。
+      不要与本脚本同时运行,否则审批事件会被两边竞争分走,表现为"有时收不到通知"。
+      正常情况下只跑 chat 服务,本脚本仅用于排障或独立演示。
+
 用法:
     .venv\Scripts\python refund_consumer.py
 """

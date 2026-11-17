@@ -8,6 +8,8 @@ use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\RateController;
 use App\Http\Controllers\Web\RefundController;
 use App\Http\Controllers\Web\TaskController;
+use App\Http\Controllers\Web\TraceController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect('/admin'));
@@ -16,6 +18,28 @@ Route::get('/', fn () => redirect('/admin'));
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
+
+/**
+ * 当前登录用户（chat 服务用它做 SSO 校验）。
+ * 不跳转、不返回 HTML：未登录就是 401 JSON，便于 /chat 反代侧判定。
+ */
+Route::get('/session/me', function (Request $request) {
+    $user = $request->user();
+    if ($user === null) {
+        return response()->json(['code' => 401, 'message' => '未登录', 'data' => null], 401);
+    }
+
+    return response()->json([
+        'code' => 0,
+        'message' => 'ok',
+        'data' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+        ],
+    ]);
+});
 
 // 后台（需 session 登录）
 Route::middleware('auth')->group(function () {
@@ -41,11 +65,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/products', [ProductController::class, 'index']);
     Route::get('/admin/products/{sku}', [ProductController::class, 'show']);
 
-    // 退款审批
+    // 退款审批（资金操作，仅管理员）
     Route::get('/admin/refunds', [RefundController::class, 'index']);
     Route::get('/admin/refunds/{id}', [RefundController::class, 'show']);
-    Route::post('/admin/refunds/{id}/approve', [RefundController::class, 'approve']);
-    Route::post('/admin/refunds/{id}/reject', [RefundController::class, 'reject']);
+    Route::post('/admin/refunds/{id}/approve', [RefundController::class, 'approve'])->middleware('role:admin');
+    Route::post('/admin/refunds/{id}/reject', [RefundController::class, 'reject'])->middleware('role:admin');
+
+    // 全链路追踪与审计（仅管理员）
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/traces', [TraceController::class, 'index']);
+        Route::get('/admin/traces/{traceId}', [TraceController::class, 'show']);
+    });
 
     // 异步任务
     Route::get('/admin/tasks', [TaskController::class, 'index']);

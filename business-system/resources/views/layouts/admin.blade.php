@@ -67,6 +67,9 @@
     <a href="{{ url('/admin/refunds') }}" class="{{ request()->is('admin/refunds*') ? 'active' : '' }}">💸 退款审批</a>
     <a href="{{ url('/admin/tasks') }}" class="{{ request()->is('admin/tasks*') ? 'active' : '' }}">⚙️ 异步任务</a>
     <a href="{{ url('/admin/rates') }}" class="{{ request()->is('admin/rates*') ? 'active' : '' }}">💱 汇率配置</a>
+    @if (auth()->user()?->role === 'admin')
+        <a href="{{ url('/admin/traces') }}" class="{{ request()->is('admin/traces*') ? 'active' : '' }}">🔗 全链路追踪</a>
+    @endif
 </nav>
 
 <div class="main">
