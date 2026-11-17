@@ -46,6 +46,9 @@
     @if ($errors->any())
         <div class="error">{{ $errors->first() }}</div>
     @endif
+    @if (session('error'))
+        <div class="error">{{ session('error') }}</div>
+    @endif
 
     <div class="hint">管理员：admin@example.com / admin123<br>客服：agent@example.com / agent123</div>
 </div>

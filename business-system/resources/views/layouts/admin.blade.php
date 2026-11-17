@@ -68,6 +68,7 @@
     <a href="{{ url('/admin/tasks') }}" class="{{ request()->is('admin/tasks*') ? 'active' : '' }}">⚙️ 异步任务</a>
     <a href="{{ url('/admin/rates') }}" class="{{ request()->is('admin/rates*') ? 'active' : '' }}">💱 汇率配置</a>
     @if (auth()->user()?->role === 'admin')
+        <a href="{{ url('/admin/users') }}" class="{{ request()->is('admin/users*') ? 'active' : '' }}">👥 用户管理</a>
         <a href="{{ url('/admin/traces') }}" class="{{ request()->is('admin/traces*') ? 'active' : '' }}">🔗 全链路追踪</a>
     @endif
 </nav>

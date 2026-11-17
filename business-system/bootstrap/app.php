@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.token' => ApiTokenAuth::class,
             'role' => \App\Http\Middleware\RequireRole::class,
+            'active' => \App\Http\Middleware\EnsureUserActive::class,
         ]);
 
         // 全链路追踪：API 放最前面（尽早拿到/生成 trace_id 并注入日志上下文），

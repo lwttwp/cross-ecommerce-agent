@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserStatus;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\CustomerController;
 use App\Http\Controllers\Web\DashboardController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Web\RateController;
 use App\Http\Controllers\Web\RefundController;
 use App\Http\Controllers\Web\TaskController;
 use App\Http\Controllers\Web\TraceController;
+use App\Http\Controllers\Web\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -25,8 +27,8 @@ Route::post('/logout', [AuthController::class, 'logout']);
  */
 Route::get('/session/me', function (Request $request) {
     $user = $request->user();
-    if ($user === null) {
-        return response()->json(['code' => 401, 'message' => '未登录', 'data' => null], 401);
+    if ($user === null || $user->status !== UserStatus::Active) {
+        return response()->json(['code' => 401, 'message' => '未登录或账号已禁用', 'data' => null], 401);
     }
 
     return response()->json([
@@ -41,8 +43,8 @@ Route::get('/session/me', function (Request $request) {
     ]);
 });
 
-// 后台（需 session 登录）
-Route::middleware('auth')->group(function () {
+// 后台（需 session 登录 + 账号启用）
+Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/admin', [DashboardController::class, 'index']);
 
     // 订单
@@ -70,6 +72,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/refunds/{id}', [RefundController::class, 'show']);
     Route::post('/admin/refunds/{id}/approve', [RefundController::class, 'approve'])->middleware('role:admin');
     Route::post('/admin/refunds/{id}/reject', [RefundController::class, 'reject'])->middleware('role:admin');
+
+    // 用户管理（仅管理员）
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/users', [UserController::class, 'index']);
+        Route::get('/admin/users/create', [UserController::class, 'create']);
+        Route::post('/admin/users', [UserController::class, 'store']);
+        Route::post('/admin/users/{id}/toggle', [UserController::class, 'toggle']);
+        Route::delete('/admin/users/{id}', [UserController::class, 'destroy']);
+    });
 
     // 全链路追踪与审计（仅管理员）
     Route::middleware('role:admin')->group(function () {

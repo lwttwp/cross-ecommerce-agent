@@ -46,6 +46,11 @@
 - **幂等**：重复取消已取消订单返回 40901，不再二次返还库存
 - **通知消费**：`refund_consumer.py` 注明与 chat 内置 `ChatEventBridge` 竞争同一队列，不可同时运行
 
+### 用户管理（后台，仅管理员）
+- 新增 `/admin/users`：列表、姓名/邮箱搜索、角色/状态筛选、新增、禁用/启用、软删除
+- `users` 加 `status` + `deleted_at`；禁用后登录被拒，后台下一次请求即登出，`/session/me` 返回 401
+- 审计 `user.create / user.enable / user.disable / user.delete`；不能禁用/删除自己或最后一个启用中的管理员
+
 ### 测试
 - 新增 `agent/tests/test_chat_manager.py`（归属/迁移）、`test_obs.py`（trace/日志/指标）、
   `test_auth.py`（SSO 校验/缓存/fail closed），共 24 条用例
