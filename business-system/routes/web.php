@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\CustomerController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\OrderController;
 use App\Http\Controllers\Web\ProductController;
+use App\Http\Controllers\Web\RagController;
 use App\Http\Controllers\Web\RateController;
 use App\Http\Controllers\Web\RefundController;
 use App\Http\Controllers\Web\TaskController;
@@ -80,6 +81,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/admin/users', [UserController::class, 'store']);
         Route::post('/admin/users/{id}/toggle', [UserController::class, 'toggle']);
         Route::delete('/admin/users/{id}', [UserController::class, 'destroy']);
+    });
+
+    // RAG 管理（仅管理员）
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/rag', [RagController::class, 'index']);
+        Route::post('/admin/rag/upload', [RagController::class, 'upload']);
+        Route::post('/admin/rag/rebuild', [RagController::class, 'rebuild']);
+        Route::post('/admin/rag/clear', [RagController::class, 'clear']);
     });
 
     // 全链路追踪与审计（仅管理员）

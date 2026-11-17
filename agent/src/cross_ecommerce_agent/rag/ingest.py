@@ -3,6 +3,7 @@ import os
 import cross_ecommerce_agent.config as config
 import hashlib
 from cross_ecommerce_agent.rag.embeddings import OpenAICompatibleEmbeddings
+from cross_ecommerce_agent.rag.access import access_level_for
 from langchain_chroma import Chroma
 from langchain_text_splitters import MarkdownHeaderTextSplitter,RecursiveCharacterTextSplitter
 from datetime import datetime
@@ -36,10 +37,10 @@ def get_string_md5(input_str: str, encoding='utf-8'):
     return md5_str
 
 class KnowledgeBaseService(object):
-    def __init__(self):
+    def __init__(self, chroma=None):
         # 创建向量数据库存储路径，不存在则创建
         os.makedirs(config.CHROMA_PERSIST_DIR, exist_ok=True)
-        self.chroma = Chroma(
+        self.chroma = chroma or Chroma(
             collection_name=config.CHROMA_COLLECTION, # 集合名称,类似数据库中的表
             embedding_function=OpenAICompatibleEmbeddings(
                 model=config.EMBEDDING_MODEL,
@@ -69,8 +70,8 @@ class KnowledgeBaseService(object):
             chunk.metadata['source'] = file_name
             chunk.metadata['create_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             chunk.metadata['operator'] = '李万涛'
-            # 权限分级：只登记 admin 文档，其余默认 agent；非法值 fail closed 到 agent
-            access_level = config.RAG_DOC_ACCESS.get(file_name, config.RAG_ACCESS_DEFAULT)
+            # 权限分级：运行时映射优先，其次内置映射；非法值 fail closed 到 agent
+            access_level = access_level_for(file_name)
             if access_level not in ('agent', 'admin'):
                 access_level = config.RAG_ACCESS_DEFAULT
             chunk.metadata['access_level'] = access_level
@@ -80,13 +81,18 @@ class KnowledgeBaseService(object):
             self.chroma.add_documents(new_chunk, ids=new_ids)
             for new_id in new_ids:
                 save_md5(new_id)
-        return "数据已上传"
+        return len(new_chunk), len(knowledge_chunks)
 
 if __name__ == '__main__':
     service = KnowledgeBaseService()
-    for md_file in os.listdir(config.RAG_DOCS_DIR):
-        with open(config.RAG_DOCS_DIR / md_file, 'r', encoding='utf-8') as f:
-            res = service.upload_by_str(f.read(), md_file)
-            logger.info(f"文件{md_file}上传结果:{res}")
+    for docs_dir in (config.RAG_DOCS_DIR, config.RAG_UPLOAD_DIR):
+        if not docs_dir.exists():
+            continue
+        for md_file in sorted(os.listdir(docs_dir)):
+            if not md_file.endswith('.md'):
+                continue
+            with open(docs_dir / md_file, 'r', encoding='utf-8') as f:
+                added, total = service.upload_by_str(f.read(), md_file)
+            logger.info(f"文件{md_file}上传结果: 新增 {added} / 共 {total}")
     # 入库只负责写向量库；BM25 是进程内索引，重启 chat 即可按新库重建。
     # 这里不再 new 第二个 Chroma 客户端，避免新库在 Windows/新版 Chroma 下的写锁冲突。

@@ -64,8 +64,10 @@ class HybridRetriever:
     def __init__(self,
                  vector_k: int = config.VECTOR_TOP_K,
                  bm25_k: int = config.BM25_TOP_K,
-                 rrf_k: int = config.RRF_K):
-        self._store = VectorStoreService().vector_store
+                 rrf_k: int = config.RRF_K,
+                 store=None):
+        # 传入 store 时与入库服务共享同一个 Chroma client，避免多客户端写锁
+        self._store = store or VectorStoreService().vector_store
         self._vector_k = vector_k
         self._bm25_k = bm25_k
         self._rrf_k = rrf_k

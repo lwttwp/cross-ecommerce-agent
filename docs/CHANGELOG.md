@@ -58,6 +58,13 @@
 - 本次采用蓝绿重建：新库 `data/chroma_v2` + 新 collection `aftersale_policy_v2`，旧库 `data/chroma` 保留可回滚；
   后续改 `RAG_DOC_ACCESS` 或文档内容需重建（或按同样方式再做一次蓝绿切换）
 
+### RAG 管理页面（后台，仅管理员）
+- 新增 `/admin/rag`：状态、上传 `.md`（选择 agent/admin）、重建索引、清空向量库
+- Laravel 转发浏览器 Cookie 到 chat `/api/rag/*`；chat `require_admin` 二次校验
+- 上传文档写 `data/rag_documents/` + `data/rag_access.json`，立即增量入库；内置文档不动
+- 重建 = 清 chunk + 重新嵌入全部文档；清空 = 只删向量（输入 `CLEAR` 确认），源文档保留可恢复
+- 审计 `rag.upload / rag.rebuild / rag.clear`
+
 ### 测试
 - 新增 `agent/tests/test_chat_manager.py`（归属/迁移）、`test_obs.py`（trace/日志/指标）、
   `test_auth.py`（SSO 校验/缓存/fail closed），共 24 条用例

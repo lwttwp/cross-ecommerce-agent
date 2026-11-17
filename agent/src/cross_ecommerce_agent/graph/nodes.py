@@ -3,7 +3,7 @@ import json
 import re
 from cross_ecommerce_agent.graph.state import OverAllState
 from cross_ecommerce_agent.graph.router import IntentRouter,route_by_intent
-from cross_ecommerce_agent.rag.retriever import VectorStoreService,HybridRetriever
+from cross_ecommerce_agent.rag.service import rag_service
 from cross_ecommerce_agent.rag.query_rewrite import QueryRewriter,need_multi
 from cross_ecommerce_agent import obs
 from cross_ecommerce_agent.config import RAG_ANSWER_PROMPT, RAG_DEFAULT_ROLE,\
@@ -91,7 +91,6 @@ def needs_confirm(order: dict, args: RefundArgs) -> bool:
         return True                      # 大额全额退款
     return False
 
-_hybrid = HybridRetriever()
 _rw = QueryRewriter()
 _llm = get_llm()
 router = IntentRouter()
@@ -128,7 +127,7 @@ def rag_node(state: OverAllState) -> OverAllState:
     seen, merged = set(), []
     i = 1
     for query in querys:
-        rag_doc = _hybrid.invoke(query, role=role)
+        rag_doc = rag_service.invoke(query, role=role)
         for res in rag_doc:
             key = res.page_content
             if key not in seen:
