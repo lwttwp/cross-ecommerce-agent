@@ -93,7 +93,7 @@ cross-ecommerce-agent/
 │       └── refund_mapper.py    # refund_no → thread_id 映射（审批事件回会话）
 ├── mcp-server/                 # 原生 PHP MCP Server（无框架，stdio 传输）
 ├── docs/                       # PRD.md / ARCHITECTURE.md（本文件）
-├── eval/                       # 评测用例（34 条）+ run_eval.py
+├── eval/                       # 评测用例（37 条）+ run_eval.py
 └── deploy/                     # 本地启动/停止脚本（start-all.bat / stop-all.bat）
 ```
 
@@ -518,7 +518,7 @@ WS 消息 ──▶ trace_id ──┬─ trace_requests: agent.round   (对话�
 ### 11.4 评测
 
 - **评测集**（`eval/` 目录）：
-  - `cases.jsonl`：34 条用例（含期望结果与负向断言，见 PRD §9.2）
+  - `cases.jsonl`：37 条用例（含期望结果与负向断言，见 PRD §9.2）
   - `run_eval.py`：逐条跑 Agent → 结构化断言（正确/错误/是否编造）→ 输出通过率报告
   - 关键指标：整体通过率 ≥ 90%，负向用例拦截率 100%
 

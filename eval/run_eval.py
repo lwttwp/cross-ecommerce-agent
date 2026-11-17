@@ -37,6 +37,7 @@ except ImportError:
     pass  # 环境变量已注入时无需 dotenv
 
 from cross_ecommerce_agent.graph.build import graph  # noqa: E402
+from cross_ecommerce_agent import obs  # noqa: E402
 
 EVAL_DIR = os.path.dirname(os.path.abspath(__file__))
 CASES_PATH = os.path.join(EVAL_DIR, "cases.jsonl")
@@ -49,7 +50,9 @@ def run_case(case: dict, timeout: int = 120) -> dict:
     started = time.time()
 
     def _invoke():
-        return graph.invoke({"user_input": case["input"]}, config=config)
+        role = case.get("user_role", "agent")
+        with obs.bind(user={"id": 0, "name": "eval", "role": role}):
+            return graph.invoke({"user_input": case["input"]}, config=config)
 
     try:
         with ThreadPoolExecutor(max_workers=1) as ex:

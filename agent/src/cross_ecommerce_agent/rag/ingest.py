@@ -1,7 +1,6 @@
 # 知识库服务类
 import os
 import cross_ecommerce_agent.config as config
-from cross_ecommerce_agent.rag.retriever import HybridRetriever
 import hashlib
 from cross_ecommerce_agent.rag.embeddings import OpenAICompatibleEmbeddings
 from langchain_chroma import Chroma
@@ -9,7 +8,6 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter,RecursiveCharact
 from datetime import datetime
 import logging
 logger = logging.getLogger(__name__)
-
 def check_md5(md5_str: str):
     if not os.path.exists(config.md5_path):
         open(config.md5_path, 'w').close()
@@ -71,6 +69,11 @@ class KnowledgeBaseService(object):
             chunk.metadata['source'] = file_name
             chunk.metadata['create_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             chunk.metadata['operator'] = '李万涛'
+            # 权限分级：只登记 admin 文档，其余默认 agent；非法值 fail closed 到 agent
+            access_level = config.RAG_DOC_ACCESS.get(file_name, config.RAG_ACCESS_DEFAULT)
+            if access_level not in ('agent', 'admin'):
+                access_level = config.RAG_ACCESS_DEFAULT
+            chunk.metadata['access_level'] = access_level
             new_chunk.append(chunk)
             new_ids.append(md5_hex)
         if new_chunk:
@@ -81,10 +84,9 @@ class KnowledgeBaseService(object):
 
 if __name__ == '__main__':
     service = KnowledgeBaseService()
-    hybrid = HybridRetriever()
     for md_file in os.listdir(config.RAG_DOCS_DIR):
         with open(config.RAG_DOCS_DIR / md_file, 'r', encoding='utf-8') as f:
             res = service.upload_by_str(f.read(), md_file)
             logger.info(f"文件{md_file}上传结果:{res}")
-    #入库后要调 HybridRetriever.rebuild_index() 刷新 BM25 索引(
-    hybrid.rebuild_index()
+    # 入库只负责写向量库；BM25 是进程内索引，重启 chat 即可按新库重建。
+    # 这里不再 new 第二个 Chroma 客户端，避免新库在 Windows/新版 Chroma 下的写锁冲突。

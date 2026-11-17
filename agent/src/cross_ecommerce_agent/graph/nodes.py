@@ -5,7 +5,8 @@ from cross_ecommerce_agent.graph.state import OverAllState
 from cross_ecommerce_agent.graph.router import IntentRouter,route_by_intent
 from cross_ecommerce_agent.rag.retriever import VectorStoreService,HybridRetriever
 from cross_ecommerce_agent.rag.query_rewrite import QueryRewriter,need_multi
-from cross_ecommerce_agent.config import RAG_ANSWER_PROMPT,\
+from cross_ecommerce_agent import obs
+from cross_ecommerce_agent.config import RAG_ANSWER_PROMPT, RAG_DEFAULT_ROLE,\
     AGENT_SYSTEM_PROMPT,EXTRACT_REFUND_PROMPT,REFUND_CONFIRM_THRESHOLD,HISTORY_RECENT_KEEP,\
     HISTORY_SUMMARY_PROMPT
 from cross_ecommerce_agent.llm.client import get_llm
@@ -113,6 +114,9 @@ def intent_router(state: OverAllState) -> OverAllState:
     }
 
 def rag_node(state: OverAllState) -> OverAllState:
+    # 当前用户角色决定可召回的知识库级别；评测/CLI 未绑定时默认 agent
+    role = (obs.current_user() or {}).get("role") or RAG_DEFAULT_ROLE
+    role_label = "管理员" if role == "admin" else "客服/运营"
     # 查询重写
     querys = []
     # 判断是否需要多次改写
@@ -124,7 +128,7 @@ def rag_node(state: OverAllState) -> OverAllState:
     seen, merged = set(), []
     i = 1
     for query in querys:
-        rag_doc = _hybrid.invoke(query)
+        rag_doc = _hybrid.invoke(query, role=role)
         for res in rag_doc:
             key = res.page_content
             if key not in seen:
@@ -134,7 +138,11 @@ def rag_node(state: OverAllState) -> OverAllState:
 
     merged = "\n\n".join(merged)
     base_msgs, extra_text = build_context(state)
-    system_text = RAG_ANSWER_PROMPT + (f"\n\n{extra_text}" if extra_text else "")
+    role_line = (
+        f"\n\n当前用户角色：{role_label}。只依据与角色匹配的参考资料；"
+        "查不到时按第 3 条回复，建议转人工。"
+    )
+    system_text = RAG_ANSWER_PROMPT + role_line + (f"\n\n{extra_text}" if extra_text else "")
     system_msg = SystemMessage(content=system_text)
     # 方案 A:用户消息已在历史中则不重复追加;第一次出现时需一并写入 state
     human_msg = HumanMessage(content=state['user_input'])

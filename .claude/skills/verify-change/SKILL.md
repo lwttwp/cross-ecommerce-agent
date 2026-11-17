@@ -1,6 +1,6 @@
 ---
 name: verify-change
-description: 改动本仓库代码后，用正确的验证阶梯回归（Python 单测 → MCP 冒烟 → stdio 端到端 → LangGraph 链路 → 34 条 eval）。只要改了 business-system/、agent/、mcp-server/ 或 eval/ 下任何文件，就应当用这个 skill 决定跑哪几层——避免漏跑导致回归，也避免每次都全量跑浪费时间。用户说"验证一下""跑测试""改完确认没坏""回归""跑一下 eval"时也用这个。
+description: 改动本仓库代码后，用正确的验证阶梯回归（Python 单测 → MCP 冒烟 → stdio 端到端 → LangGraph 链路 → 37 条 eval）。只要改了 business-system/、agent/、mcp-server/ 或 eval/ 下任何文件，就应当用这个 skill 决定跑哪几层——避免漏跑导致回归，也避免每次都全量跑浪费时间。用户说"验证一下""跑测试""改完确认没坏""回归""跑一下 eval"时也用这个。
 ---
 
 # 改动后验证
@@ -80,7 +80,7 @@ python mcp-server/tests/langgraph_connect.py
 验证 MCP 工具能挂成 LangChain 工具并驱动一轮「意图 → 工具调用 → 回答」。
 **需要 `DEEPSEEK_API_KEY`**。无断言，纯人工判读 `✅` 行。
 
-## ④ 34 条评测（最终闸门）
+## ④ 37 条评测（最终闸门）
 
 ```bash
 python eval/run_eval.py --retry 1

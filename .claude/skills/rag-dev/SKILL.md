@@ -68,6 +68,14 @@ description: 改 agent/src/cross_ecommerce_agent/rag/ 下任何东西时使用�
 
 ---
 
+## 权限分级（agent / admin）
+
+- chunk metadata 有 `access_level`（`agent` / `admin`），来源 `config.RAG_DOC_ACCESS`；缺省 `agent`
+- 向量路走 Chroma metadata filter，BM25 路按角色预建索引——两条路都过滤，不能只过滤最终结果
+- `rag_node` 从 `obs.current_user()` 取角色；评测用例用可选 `user_role`
+- 当前 admin 文档只有 `dispute_resolution_policy.md`；改分级或文档内容后必须重建 collection
+  （现用 `data/chroma_v2` + `aftersale_policy_v2`，旧库保留可回滚）
+
 ## 常见任务
 
 ### 新增一篇知识库文档
@@ -112,7 +120,7 @@ RAG 没有单元测试，验证靠三层：
 |---|---|---|
 | 单点检索 | `agent/scripts/compare_retrieval.py` | 纯向量 vs 混合的召回差异 |
 | 改写质量 | `agent/scripts/compare_rewrite.py` | 改写前后 query 的差异 |
-| 端到端 | `python eval/run_eval.py --category 政策问答` | 34 条用例里的政策类子集 |
+| 端到端 | `python eval/run_eval.py --category 政策问答` | 37 条用例里的政策类子集 |
 
 **改 prompt 或检索后，先跑单类（`--category 政策问答`），不要一上来跑全量。**
 

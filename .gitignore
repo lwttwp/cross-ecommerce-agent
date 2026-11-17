@@ -30,3 +30,7 @@ memory/
 
 # TikTok Thailand business files (selection/cost model, not for repo)
 tiktok-thailand/
+
+# Python cache
+__pycache__/
+jieba.cache
