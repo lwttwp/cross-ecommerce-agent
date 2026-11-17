@@ -111,7 +111,7 @@ START → intent_router ─route_by_intent─┬─ policy → rag_node    → E
 
 ```bash
 python eval/run_eval.py --category 政策问答      # 改 prompt / RAG 后先跑单类，快
-python eval/run_eval.py --retry 1               # 最终全量 34 条，必须全过
+python eval/run_eval.py --retry 1               # 最终全量 37 条，必须全过
 python mcp-server/tests/langgraph_connect.py    # 改工具层后验链路
 ```
 

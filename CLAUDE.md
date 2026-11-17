@@ -18,7 +18,7 @@
 | `business-system/` | Laravel 12 后端（唯一事实来源）。路由前缀 `/api/v1`，双角色 token 鉴权 |
 | `agent/` | Python LangGraph Agent + FastAPI 聊天服务。包根是 `agent/src/cross_ecommerce_agent/`（子包 `graph/ llm/ rag/ tools/` + 单文件 `config.py`、`obs.py` 可观测基座），入口 `chat_server.py`，`chat/` 会话管理（`chat_manager.py`）、登录态校验（`auth.py`）与通知桥接 + 前端 |
 | `mcp-server/` | 原生 PHP 手写 MCP Server（JSON-RPC 2.0 + stdio 传输），14 个业务工具 |
-| `eval/` | Agent 评测：`cases.jsonl`（34 条）+ `run_eval.py` |
+| `eval/` | Agent 评测：`cases.jsonl`（37 条）+ `run_eval.py` |
 | `deploy/` | 一键启停脚本 + `server-setup.md` 生产部署手册 |
 | `docs/` | `ARCHITECTURE.md` / `PRD.md` / `CHANGELOG.md` / `screenshots/` |
 | `docker-compose.yml` | 六个服务：postgres / rabbitmq / php-api / php-web / chat / php-worker |
@@ -47,7 +47,7 @@ php mcp-server/tests/client_smoke.php             # MCP 工具单元冒烟
 php mcp-server/tests/stdio_e2e.php                # MCP 端到端（真实进程管道）
 python mcp-server/tests/langgraph_connect.py      # LangGraph ↔ MCP 链路
 python eval/run_eval.py --category 政策问答        # 单类回归（类别见 cases.jsonl）
-python eval/run_eval.py --retry 1                 # 34 条评测，必须全过
+python eval/run_eval.py --retry 1                 # 37 条评测，必须全过
 python -m unittest discover -s agent/tests -v     # 多用户/可观测单测（24 条，不需要容器）
 ```
 

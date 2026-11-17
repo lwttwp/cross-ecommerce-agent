@@ -11,6 +11,26 @@ def _tokenize(text: str) -> list[str]:
     return [t.strip() for t in jieba.cut(text) if t.strip()]
 
 
+def _doc_access_level(doc: Document) -> str:
+    """chunk 的权限级别；缺失/非法值 fail closed 到默认级别。"""
+    level = (doc.metadata or {}).get('access_level', config.RAG_ACCESS_DEFAULT)
+    return level if level in ('agent', 'admin') else config.RAG_ACCESS_DEFAULT
+
+
+def _allowed_levels(role: str | None) -> tuple[str, ...]:
+    return config.RAG_ACCESS_LEVELS.get(
+        role or config.RAG_DEFAULT_ROLE,
+        config.RAG_ACCESS_LEVELS[config.RAG_DEFAULT_ROLE],
+    )
+
+
+def _access_filter(allowed: tuple[str, ...]) -> dict:
+    """Chroma metadata filter：单级别用等值，多级别用 $or（兼容老版本 Chroma）。"""
+    if len(allowed) == 1:
+        return {'access_level': allowed[0]}
+    return {'$or': [{'access_level': level} for level in allowed]}
+
+
 class VectorStoreService:
     """纯向量检索服务(Chroma)。"""
 
@@ -25,8 +45,10 @@ class VectorStoreService:
             persist_directory=config.CHROMA_PERSIST_DIR,
         )
 
-    def get_retriever(self, k: int = config.RETRIEVE_K):
-        return self.vector_store.as_retriever(search_kwargs={"k": k})
+    def get_retriever(self, k: int = config.RETRIEVE_K, role: str | None = None):
+        return self.vector_store.as_retriever(
+            search_kwargs={"k": k, "filter": _access_filter(_allowed_levels(role))}
+        )
 
 
 class HybridRetriever:
@@ -49,6 +71,9 @@ class HybridRetriever:
         self._rrf_k = rrf_k
         self._bm25: BM25Okapi | None = None
         self._corpus: list[Document] = []
+        # 角色 -> 该角色可见的语料/BM25 索引（权限过滤在检索层完成）
+        self._corpus_by_role: dict[str, list[Document]] = {}
+        self._bm25_by_role: dict[str, BM25Okapi | None] = {}
         self.rebuild_index()
 
     def rebuild_index(self):
@@ -61,23 +86,40 @@ class HybridRetriever:
         if not self._corpus:
             # 空库(全新环境未入库):不构建 BM25,避免 rank_bm25 除零;入库后 rebuild 即可
             self._bm25 = None
+            self._corpus_by_role = {}
+            self._bm25_by_role = {}
             print("[retriever] 向量库为空,BM25 索引暂不构建(请先运行 rag/ingest.py 入库)")
             return
         self._bm25 = BM25Okapi([_tokenize(d.page_content) for d in self._corpus])
+        self._corpus_by_role = {}
+        self._bm25_by_role = {}
+        for role, levels in config.RAG_ACCESS_LEVELS.items():
+            docs = [d for d in self._corpus if _doc_access_level(d) in levels]
+            self._corpus_by_role[role] = docs
+            self._bm25_by_role[role] = (
+                BM25Okapi([_tokenize(d.page_content) for d in docs]) if docs else None
+            )
 
-    def invoke(self, query: str, k: int | None = None) -> list[Document]:
-        """混合检索,返回按融合分排序的 top-k 文档(两路都命中的排前面)。"""
+    def invoke(self, query: str, k: int | None = None, role: str | None = None) -> list[Document]:
+        """混合检索，按角色过滤授权级别后返回融合 top-k。"""
         k = k or self._vector_k
-        if self._bm25 is None:
+        role_key = role if role in config.RAG_ACCESS_LEVELS else config.RAG_DEFAULT_ROLE
+        allowed = config.RAG_ACCESS_LEVELS[role_key]
+        if not self._corpus_by_role:
             self.rebuild_index()
 
-        # 向量路:similarity_search_with_score 返回 [(doc, score)],按序即排名
-        vec_results = self._store.similarity_search_with_score(query, k=self._vector_k)
+        # 向量路: Chroma metadata filter + 本地二次校验（双保险）
+        vec_results = self._store.similarity_search_with_score(
+            query, k=self._vector_k, filter=_access_filter(allowed)
+        )
+        vec_results = [(d, s) for d, s in vec_results if _doc_access_level(d) in allowed]
 
-        # BM25 路:按分数取 top bm25_k(向量库为空时跳过,仅走向量路)
+        # BM25 路: 只用该角色的语料/索引，避免关键词路绕过权限
+        corpus = self._corpus_by_role.get(role_key, [])
+        bm25 = self._bm25_by_role.get(role_key)
         bm25_ranked: list[int] = []
-        if self._bm25 is not None:
-            bm25_scores = self._bm25.get_scores(_tokenize(query))
+        if bm25 is not None and corpus:
+            bm25_scores = bm25.get_scores(_tokenize(query))
             bm25_ranked = sorted(range(len(bm25_scores)),
                                  key=lambda i: bm25_scores[i], reverse=True)[:self._bm25_k]
 
@@ -91,7 +133,7 @@ class HybridRetriever:
             fused[did] = fused.get(did, 0.0) + 1.0 / (self._rrf_k + rank)
 
         for rank, idx in enumerate(bm25_ranked, start=1):
-            doc = self._corpus[idx]
+            doc = corpus[idx]
             did = doc.id or doc.page_content
             doc_by_id[did] = doc
             fused[did] = fused.get(did, 0.0) + 1.0 / (self._rrf_k + rank)

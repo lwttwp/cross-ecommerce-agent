@@ -46,6 +46,18 @@
 - **幂等**：重复取消已取消订单返回 40901，不再二次返还库存
 - **通知消费**：`refund_consumer.py` 注明与 chat 内置 `ChatEventBridge` 竞争同一队列，不可同时运行
 
+### 用户管理（后台，仅管理员）
+- 新增 `/admin/users`：列表、姓名/邮箱搜索、角色/状态筛选、新增、禁用/启用、软删除
+- `users` 加 `status` + `deleted_at`；禁用后登录被拒，后台下一次请求即登出，`/session/me` 返回 401
+- 审计 `user.create / user.enable / user.disable / user.delete`；不能禁用/删除自己或最后一个启用中的管理员
+
+### RAG 权限分级
+- 知识库 chunk 增加 `access_level`（`agent` / `admin`）；`dispute_resolution_policy.md` 仅管理员可见
+- 向量路走 Chroma metadata filter，BM25 路按角色预建索引——两条路都过滤，缺 metadata 默认 `agent`
+- `rag_node` 从 `obs.current_user()` 取角色；评测用例支持可选 `user_role`，新增 3 条边界用例（共 37 条）
+- 本次采用蓝绿重建：新库 `data/chroma_v2` + 新 collection `aftersale_policy_v2`，旧库 `data/chroma` 保留可回滚；
+  后续改 `RAG_DOC_ACCESS` 或文档内容需重建（或按同样方式再做一次蓝绿切换）
+
 ### 测试
 - 新增 `agent/tests/test_chat_manager.py`（归属/迁移）、`test_obs.py`（trace/日志/指标）、
   `test_auth.py`（SSO 校验/缓存/fail closed），共 24 条用例

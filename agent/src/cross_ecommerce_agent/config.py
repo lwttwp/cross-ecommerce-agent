@@ -48,7 +48,22 @@ BM25_TOP_K = 6 # BM25 按词匹配,命中不准但全,要多捞一些给融合�
     想让精确命中更突出就调小(如 30),想让语义更平滑就调大(如 100)。
 """
 RRF_K = 60 # RRF 融合常数,公式 score = Σ 1/(RRF_K + rank)
-md5_path = BASE_DIR / 'md5.txt'
+
+# --- 知识库权限分级（agent / admin 两级） ---
+# 默认角色：评测/CLI/未绑定用户上下文时按 agent 处理（保持旧行为）
+RAG_DEFAULT_ROLE = os.getenv('RAG_DEFAULT_ROLE', 'agent')
+# chunk 缺少 access_level 时的兜底级别（fail closed 到较低权限）
+RAG_ACCESS_DEFAULT = 'agent'
+# 角色 -> 可召回的文档级别
+RAG_ACCESS_LEVELS = {
+    'agent': ('agent',),
+    'admin': ('agent', 'admin'),
+}
+# 只登记 admin 文档；其余文档默认 agent。改这里后必须全量重建索引。
+RAG_DOC_ACCESS = {
+    'dispute_resolution_policy.md': 'admin',
+}
+md5_path = (BASE_DIR / os.getenv('RAG_MD5_PATH', 'md5.txt')).resolve()
 
 RAG_ANSWER_PROMPT = """你是跨境电商平台的售后客服助手。请严格依据下面的【参考资料】回答用户问题,不要使用参考资料以外的知识。
 回答要求:

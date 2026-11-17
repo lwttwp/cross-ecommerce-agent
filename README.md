@@ -94,12 +94,12 @@ python -m venv .venv
 
 ```bash
 cd eval
-..\agent\.venv\Scripts\python run_eval.py              # 全量 34 条
+..\agent\.venv\Scripts\python run_eval.py              # 全量 37 条
 ..\agent\.venv\Scripts\python run_eval.py --category 政策问答
 ..\agent\.venv\Scripts\python run_eval.py --max 5 --json report.json
 ```
 
-- 用例:6 类 34 条(订单查询/物流跟踪/退款售后/政策问答/报表任务/边界异常),当前通过率 **34/34 = 100%**
+- 用例:6 类 37 条(订单查询/物流跟踪/退款售后/政策问答/报表任务/边界异常),当前通过率 **37/37 = 100%**
 - 断言:关键词命中、禁止词、中断挂起、无异常
 - `--retry` 参数:失败用例自动重试,区分 LLM 波动(flaky)与稳定 bug
 - 正向退款用例只验证到确认中断,不实际提交,评测零副作用

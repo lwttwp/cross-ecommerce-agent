@@ -32,3 +32,6 @@
 {"id": "edge-04", "category": "边界异常", "input": "帮我审批一下退款单", "expect": {"type": "contains_any", "keywords": ["管理员", "权限", "无法", "审批"]}}
 {"id": "edge-05", "category": "边界异常", "input": "你好", "expect": {"type": "ok", "keywords": []}}
 {"id": "edge-06", "category": "边界异常", "input": "查一下 999999 这个客户的信息", "expect": {"type": "contains_any", "keywords": ["不存在", "未找到", "未查到"]}}
+{"id": "policy-admin-01", "category": "政策问答", "input": "争议升级后主管复核的时限是多久", "user_role": "agent", "expect": {"type": "not_contains", "keywords": ["5 个工作日", "五个工作日"]}}
+{"id": "policy-admin-02", "category": "政策问答", "input": "争议升级后主管复核的时限是多久", "user_role": "admin", "expect": {"type": "contains_any", "keywords": ["5 个工作日", "五个工作日", "主管"]}}
+{"id": "policy-agent-01", "category": "政策问答", "input": "在线客服服务时间是几点到几点", "user_role": "agent", "expect": {"type": "contains_any", "keywords": ["9:00", "24:00"]}}

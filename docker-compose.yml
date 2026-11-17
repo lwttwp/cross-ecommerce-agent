@@ -92,6 +92,9 @@ services:
       BIZ_WEB_BASE: http://php-web             # 多用户：用后台登录态验票（GET /session/me）
       CHAT_AUTH_MODE: "on"                     # on=必须登录；off=本地调试免登录（会告警）
       OBS_SERVICE_NAME: agent
+      CHROMA_PERSIST_DIR: data/chroma_v2       # 权限分级重建后的新库；旧 data/chroma 保留可回滚
+      CHROMA_COLLECTION: aftersale_policy_v2   # 新 collection（带 access_level metadata）
+      RAG_MD5_PATH: data/md5_v2.txt            # 换新库必须换新去重文件，否则旧 md5 跳过 chunk
       CHECKPOINT_DB_DSN: postgresql://ce_app:ce_app_2026@postgres:5432/cross_ecommerce
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: "5672"

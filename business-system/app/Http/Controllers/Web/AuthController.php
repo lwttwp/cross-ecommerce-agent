@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +27,11 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (Auth::attemptWhen(
+            $credentials,
+            static fn (User $user): bool => $user->status === UserStatus::Active,
+            $request->boolean('remember'),
+        )) {
             $request->session()->regenerate();
 
             // 支持登录后回到原页面（如 /chat/ 未登录被踢回登录页的场景）。
